@@ -344,7 +344,7 @@ Joysticks have different axis and button numbering:
 	    forward=ly;
 	    turn=lx;
 	    
-	    fork=ry;
+	    fork=-ry;
 	    dump=-rx;
 	    break;
     case joyModeHigh:
