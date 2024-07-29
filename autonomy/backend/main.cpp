@@ -1319,7 +1319,7 @@ void robot_manager_t::update(void) {
   if (hazards !=NULL && !driveraw) 
   {
     robotPrintln(" -- HAZARD: %s --", hazards);
-    robot.power.stop();
+    // robot.power.stop();
   }
 
 
