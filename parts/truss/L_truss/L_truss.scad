@@ -27,7 +27,7 @@ rodOD_diag = 6;
 
 rodOD_top = rodOD_big; // top long rods
 rodOD_bot = rodOD_big; // bottom long rods
-rodOD_up = rodOD_big; // upright rods
+rodOD_up = rodOD_diag; // upright rods (doubled)
 rodOD_ldia = rodOD_diag; // long diagonals
 rodOD_sdia = rodOD_diag; // short diagonals
 
@@ -127,7 +127,7 @@ module truss_end_extrude(add=1) {
     }
 }
 
-// Create positive truss ends
+// Create positive truss ends: mounting tabs
 module truss_end_positive() {
     for (flipX=[0,1])
         truss_end_shiftXZ(flipX,1) truss_end_extrude(1) truss_end_XZ();
@@ -184,6 +184,28 @@ function minusX(p) = [-p[0],p[1],p[2]];
 
 
 
+// Compute the center of this top bay vertex
+bayY = -2; // -rodOD_big/2 + rodOD_diag/2; // <- put diagonals flat on build plate
+function topbay(b) = [b*(trussXtop-setbackX)/bays,bayY,0];
+function botbay(b) = [b*(trussXbot-setbackX)/bays,bayY,-trussZ];
+// Compute vertex v (0 or 1) of bay b (0..bays)
+//function bay_vertex(b,v) = (b%2)?
+//    ( v?topbay(b):botbay(b+1) ):
+//    ( v?botbay(b):topbay(b+1) );
+function bay_vertex(b,v) = (b%2)?
+    ( v?botbay(b):topbay(b+1) ):
+    ( v?topbay(b):botbay(b+1) );
+    
+// For long edge, this is the out-of-plane bay
+bay_outreach = trussZ-rodOD_big/2;
+function upright_bay(p) = [ p[0], -p[2]*bay_outreach/trussZ, p[1] ];
+
+// For short edge, this is the center diagonal vertex
+short_edge_bay = [0,-bay_outreach,-trussZ];
+
+
+
+
 
 // Draw a tube passing through these points
 module tube_list(list,OD,end=0)
@@ -217,23 +239,9 @@ module truss_tubes_back(enlarge=0)
 {
     tube_list([flip(TL),flip(BL)],rodOD_up+2*enlarge);
 }
-
-// Compute the center of this top bay vertex
-bayY = -2; // -rodOD_big/2 + rodOD_diag/2; // <- put diagonals flat on build plate
-function topbay(b) = [b*(trussXtop-setbackX)/bays,bayY,0];
-function botbay(b) = [b*(trussXbot-setbackX)/bays,bayY,-trussZ];
-// Compute vertex v (0 or 1) of bay b (0..bays)
-//function bay_vertex(b,v) = (b%2)?
-//    ( v?topbay(b):botbay(b+1) ):
-//    ( v?botbay(b):topbay(b+1) );
-function bay_vertex(b,v) = (b%2)?
-    ( v?botbay(b):topbay(b+1) ):
-    ( v?topbay(b):botbay(b+1) );
-function upright_bay(p) = [ p[0], -p[2], p[1] ];
-    
     
 // Full set of truss tubes
-module truss_tubes(enlarge=0)
+module truss_tubes(enlarge=0,longedge=1)
 {
     
     tube_list([flip(TL),TL],rodOD_top+2*enlarge);
@@ -242,21 +250,33 @@ module truss_tubes(enlarge=0)
     truss_tubes_front(enlarge);
     truss_tubes_back(enlarge);
     
-    // Even bays, starting from center
+    // Diagonals
+    d = rodOD_sdia+2*enlarge;
+    
+    // Bays, starting from center
     for (b=[0:bays-1])
     {
-        d = rodOD_sdia+2*enlarge;
         p=bay_vertex(b,0);
         n=bay_vertex(b,1);
         
-        tube_listF([p,n],d);
-        tube_listF([upright_bay(p),upright_bay(n)],d);
+        tube_listF([p,n],d); // in-plane diagonals
+        
+        if (longedge) { // out-of-plane diagonals
+            tube_listF([upright_bay(p),upright_bay(n)],d);
+        }
+    }
+    
+    if (!longedge) {
+        L = botbay(1);
+        C = short_edge_bay;
+        R = botbay(-1);
+        tube_listF([L,C,R],d);
     }
     
 }
 
 // One generic truss vertex, centered at this point
-module truss_vertex(p,wall=truss_wall,range=25) 
+module truss_vertex(p,wall=truss_wall,range=25,longedge=1) 
 {
     difference() {
         union() {
@@ -264,7 +284,7 @@ module truss_vertex(p,wall=truss_wall,range=25)
             intersection() {
                 translate(p) sphere(r=range);
                 
-                truss_tubes(wall);
+                truss_tubes(wall,longedge);
             }
         }
         
@@ -274,11 +294,11 @@ module truss_vertex(p,wall=truss_wall,range=25)
 }
 
 // One truss vertex, with webbed walls connecting the convex hull
-module truss_vertex_webbed(p,end=0,extraweb=0,range=20)
+module truss_vertex_webbed(p,end=0,extraweb=0,range=20,longedge=1)
 {
-    truss_vertex(p,range=1.1*range);
+    truss_vertex(p,range=1.1*range,longedge=longedge);
     hull() {
-        truss_vertex(p,wall=0,range=range);
+        truss_vertex(p,wall=0,range=range,longedge=longedge);
         if (end) {// reinforcing around mount bolt
             translate(p) rotate([90,0,0]) cylinder(d=16+2*extraweb,h=truss_endZ,center=true);
         }
@@ -306,13 +326,13 @@ module truss_sectionYZ(henlarge=0)
     ]);
 }
     
-// Front vertex that has an assembly nut
-module truss_vertex_frontback(p,back=0,extraweb=0)
+// Front or back vertex, that has an assembly nut
+module truss_vertex_frontback(p,back=0,extraweb=0,longedge=1)
 {
     fp = back?flip(p):p;
     difference() {
         union() {
-            truss_vertex_webbed(fp,1,extraweb) {
+            truss_vertex_webbed(fp,1,extraweb,longedge=longedge) {
                 children(); //<- add any reinforcing here
             }
         }
@@ -331,43 +351,54 @@ module truss_vertex_frontback(p,back=0,extraweb=0)
 }
 
 // The full set of front vertexes
-module truss_vertexes_front()
+module truss_vertexes_front(longedge=1)
 {
-    truss_vertex_frontback(TL,0) children();
-    truss_vertex_frontback(BL,0,2) children();
+    truss_vertex_frontback(TL,0,0,longedge=longedge) children();
+    truss_vertex_frontback(BL,0,2,longedge=longedge) children();
 }
 
 // The full set of back vertexes
-module truss_vertexes_back()
+module truss_vertexes_back(longedge=1)
 {
-    truss_vertex_frontback(TL,1,4) children();
-    truss_vertex_frontback(BL,1) children();
+    truss_vertex_frontback(TL,1,4,longedge=longedge) children();
+    truss_vertex_frontback(BL,1,0,longedge=longedge) children();
 }
 
 // The full set of vertexes in the truss
-module truss_vertexes()
+module truss_vertexes(longedge=1)
 {
-    truss_vertexes_front();
-    truss_vertexes_back();
+    truss_vertexes_front(longedge=longedge);
+    truss_vertexes_back(longedge=longedge);
+    
+    bayrange=15;
     for (b=[0:bays-1]) {
-        bayrange=15;
         p=bay_vertex(b,1);
-        truss_vertex_webbed(p,range=bayrange);
-        if (b>0) truss_vertex_webbed(flip(p),range=bayrange);
-        if ((b%2)!=0) {
+        truss_vertex_webbed(p,range=bayrange,longedge=longedge);
+        if (b>0) truss_vertex_webbed(flip(p),range=bayrange,longedge=longedge);
+        if (longedge && (b%2)!=0) {
             up=upright_bay(p);
-            truss_vertex_webbed(up,range=bayrange);
-            truss_vertex_webbed(flip(up),range=bayrange);
+            truss_vertex_webbed(up,range=bayrange,longedge=longedge);
+            truss_vertex_webbed(flip(up),range=bayrange,longedge=longedge);
         }
+    }
+    
+    if (longedge==0)
+    { // short edge
+        L = botbay(1);
+        C = short_edge_bay;
+        R = botbay(-1);
+        for (p=[L,C,R])
+            truss_vertex_webbed(p,range=bayrange,longedge=longedge);
     }
 }
 
 // Full truss
-module truss_full(Yscale=1,tubeYshift=0) {
+module truss_full(Yscale=1,tubeYshift=0,longedge=1) {
     difference() {
         union() {
-            truss_vertexes();
-            translate([0,tubeYshift,0]) scale([1,Yscale,1]) truss_tubes();
+            truss_vertexes(longedge=longedge);
+            translate([0,tubeYshift,0]) scale([1,Yscale,1]) 
+                truss_tubes(longedge=longedge);
             truss_end_positive();
         }
         truss_end_negative();
@@ -376,13 +407,13 @@ module truss_full(Yscale=1,tubeYshift=0) {
 }
 
 // Printable end tubes
-module truss_printable() {
+module truss_printable(longedge=1) {
     rotate([90,0,0]) 
         scale([1,1,1]*scale) 
         difference() {
             Yscale=1.0; // stretch Y to reach flat base while printing
             Yshift=2;
-            truss_full(Yscale,-Yshift);
+            truss_full(Yscale,-Yshift,longedge);
             // trim base flat for printing
             base_startY=truss_endZ/2;
             translate([0,-1000-base_startY,0]) cube([2000,2000,2000],center=true);
@@ -452,13 +483,67 @@ module truss_demo_stack(n=5)
     }
 }
 
+// Demonstrates trusses arranged in a tower or box beam.
+module truss_demo_tower(L=1) 
+{
+    for (stack=[0:2])
+    translate([stack*(trussXtop+trussXbot),0,0])
+    {
+        flip=stack%2;
+        rotate(flip*[0,180,0]) translate(flip*[0,0,trussZ])
+        {
+            translate ([0,L==0?trussZ:0,0]) truss_full(longedge=L); 
+            translate([0,L==0?0:trussZ,-trussZ]) rotate([180,0,0]) truss_full(longedge=L);
+        }
+    }
+}
+// Demonstrates trusses arranged in a box arch
+module truss_demo_boxarch(len=3) 
+{
+    for (n=[-len:+len]) truss_advanceN(n)
+    {
+        truss_full(longedge=1); 
+        translate([0,trussZ,0]) //rotate([180,0,0]) 
+            truss_full(longedge=0);
+    }
+}
+
+// 6 trusses in an arc, plus one straight on each end
+module truss_demo_8arch()
+{
+    rotate([0,-truss_hangle,0]) 
+    {
+        len=3;
+        for (n=[-len+1:+len]) truss_advanceN(n)
+            truss_full(longedge=1); 
+        
+        // Back straight segment
+        truss_advanceN(-len+1) {
+            translate([-(trussXtop+trussXbot),0,-trussZ]) 
+            rotate([180,0,0]) rotate([0,0,180])
+                truss_full(longedge=0);
+        }
+        
+        // Front straight segment
+        truss_advanceN(+len) {
+            translate([+(trussXtop+trussXbot),0,-trussZ]) 
+            rotate([180,0,0]) rotate([0,0,180])
+                truss_full(longedge=0);
+        }        
+    }
+}
+
 //truss_vertexes();
 //truss_printable();
 //truss_lengths();
 
 // Demo versions:
+//truss_full(longedge=0);
+//truss_demo_tower(0);
 //truss_demo_mate(1);
 //truss_demo_mate(0);
-truss_demo_fullarch(); translate([0,trussZ,0]) truss_demo_fullarch();
+//truss_demo_fullarch(); translate([0,trussZ,0]) truss_demo_fullarch();
+//truss_demo_boxarch();
+truss_demo_8arch();
 //truss_demo_stack();
 
