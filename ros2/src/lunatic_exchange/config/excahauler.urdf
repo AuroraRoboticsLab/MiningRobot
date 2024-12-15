@@ -1,0 +1,238 @@
+<?xml version="1.0"?>
+<robot name="Excahauler">
+  <link name="base_link">
+  </link>
+  
+  <link name="frame_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/frame.dae"/>
+      </geometry>
+    </visual>
+  </link>  
+  <joint name="drive" type="fixed">
+    <origin xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="frame_link"/>
+  </joint>
+
+
+  <link name="frameBox_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/frameBox.dae"/>
+      </geometry>
+    </visual>
+  </link>
+<joint name="frameBox" type="fixed">
+  <origin rpy="0 0 0" xyz="0 0 0"/>
+  <parent link="frame_link"/>
+  <child link="frameBox_link"/>
+</joint>
+
+
+
+
+  <link name="fork_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/fork.dae"/>
+      </geometry>
+    </visual>
+  </link>  
+<joint name="fork" type="revolute">
+  <axis xyz="-1 0 0"/>
+  <limit effort="1000.0" lower="-1.02" upper="0.17" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.455 0.150"/>
+  <parent link="frame_link"/>
+  <child link="fork_link"/>
+</joint>
+
+
+  <link name="dump_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/dump.dae"/>
+      </geometry>
+    </visual>
+  </link>  
+<joint name="dump" type="revolute">
+  <axis xyz="1 0 0"/>
+  <limit effort="1000.0" lower="-1.40" upper="-0.17" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.250 0.020"/>
+  <parent link="fork_link"/>
+  <child link="dump_link"/>
+</joint>
+  
+  
+  <link name="boom_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/boom.dae"/>
+      </geometry>
+    </visual>
+  </link>  
+<joint name="boom" type="revolute">
+  <axis xyz="-1 0 0"/>
+  <limit effort="1000.0" lower="-1.01" upper="0.91" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.570 0.215"/>
+  <parent link="frame_link"/>
+  <child link="boom_link"/>
+</joint>
+
+
+  <link name="stick_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/stick.dae"/>
+      </geometry>
+    </visual>
+  </link>
+<joint name="stick" type="revolute">
+  <axis xyz="-1 0 0"/>
+  <limit effort="1000.0" lower="-0.56" upper="1.05" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 -0.312 0.750"/>
+  <parent link="boom_link"/>
+  <child link="stick_link"/>
+</joint>
+
+
+  <link name="stickBox_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/stickBox.dae"/>
+      </geometry>
+    </visual>
+  </link>
+<joint name="stickBox" type="fixed">
+  <origin rpy="0 0 0" xyz="0 0 0"/>
+  <parent link="stick_link"/>
+  <child link="stickBox_link"/>
+</joint>
+  
+  
+  
+  <link name="stickCamera_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/stickCamera.dae"/>
+      </geometry>
+    </visual>
+  </link>
+<joint name="stickCamera" type="fixed">
+  <origin rpy="0 0 0" xyz="0 0 0"/>
+  <parent link="stick_link"/>
+  <child link="stickCamera_link"/>
+</joint>
+
+  
+  
+  <link name="tilt_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/tilt.dae"   />
+      </geometry>
+    </visual>
+  </link>
+  
+<joint name="tilt" type="revolute">
+  <axis xyz="-1 0 0"/>
+  <limit effort="1000.0" lower="-1.31" upper="0.91" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.735 0.012"/>
+  <parent link="stick_link"/>
+  <child link="tilt_link"/>
+</joint>
+
+
+  
+  <link name="arm1_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/arm1.dae"   />
+      </geometry>
+    </visual>
+  </link>
+  
+<joint name="arm1" type="revolute">
+  <axis xyz="0 1 0"/>
+  <limit effort="1000.0" lower="-1.5" upper="1.5" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.0375 -0.075"/>
+  <parent link="tilt_link"/>
+  <child link="arm1_link"/>
+</joint>
+
+
+  <link name="arm2_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/arm2.dae"   />
+      </geometry>
+    </visual>
+  </link>
+  
+<joint name="arm2" type="revolute">
+  <axis xyz="0 1 0"/>
+  <limit effort="1000.0" lower="-1.5" upper="1.5" velocity="0.5"/>
+  <origin rpy="0 0 0" xyz="0 0.0375 -0.5"/>
+  <parent link="arm1_link"/>
+  <child link="arm2_link"/>
+</joint>
+
+
+  <link name="arm3_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/arm3.dae"   />
+      </geometry>
+    </visual>
+  </link>
+  
+<joint name="arm3" type="revolute">
+  <axis xyz="0 1 0"/>
+  <limit effort="1000.0" lower="-1.5" upper="1.5" velocity="0.5"/>
+  <origin rpy="0 0 -1.5707963267" xyz="-0.075 0.0125 -0.1"/>
+  <parent link="arm2_link"/>
+  <child link="arm3_link"/>
+</joint>
+
+
+  <link name="arm4_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://lunatic_exchange/meshes/arm4.dae"   />
+      </geometry>
+    </visual>
+  </link>
+  
+<joint name="arm4" type="revolute">
+  <axis xyz="0 0 1"/>
+  <limit effort="1000.0" lower="-2" upper="2" velocity="0.5"/>
+  <origin rpy="0 0 1.5707963267" xyz="0 0.075 -0.125"/>
+  <parent link="arm3_link"/>
+  <child link="arm4_link"/>
+</joint>
+
+
+  <link name="forktip_link">
+  </link>
+  
+<joint name="forktip" type="fixed">
+  <origin rpy="0 0 0" xyz="0 0.425 -0.01"/>
+  <parent link="arm4_link"/>
+  <child link="forktip_link"/>
+</joint>
+
+
+
+
+
+    <group name="excahauler_arm">
+      <chain base_link="frame_link" tip_link="forktip_link" />
+    </group>
+
+
+
+  
+</robot>
+
+

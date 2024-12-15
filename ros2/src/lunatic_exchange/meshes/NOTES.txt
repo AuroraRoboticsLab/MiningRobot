@@ -1,0 +1,18 @@
+Ideas for how the arm actuators go together:
+    0.5m arm1 length
+    0.025m offset between joint planes
+    0.05m offset down
+
+Scale outer circular 6 nodes by 0.78 to match driven side.
+
+arm2 start:
+    0 0.0375 -0.5
+
+arm3 start: 90 deg Z rotate
+    -0.075 0.0125 -0.1
+
+range -35 deg to +215 deg
+
+tool start: 
+
+

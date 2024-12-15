@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <asset>
+    <contributor>
+      <author>Blender User</author>
+      <authoring_tool>Blender 3.0.1</authoring_tool>
+    </contributor>
+    <created>2024-12-05T09:15:59</created>
+    <modified>2024-12-05T09:15:59</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="MLI-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <diffuse>
+              <color sid="diffuse">0.1455734 0.2136071 0.2395516 1</color>
+            </diffuse>
+            <reflectivity>
+              <float sid="specular">0.779661</float>
+            </reflectivity>
+            <index_of_refraction>
+              <float sid="ior">1.45</float>
+            </index_of_refraction>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_images/>
+  <library_materials>
+    <material id="MLI-material" name="MLI">
+      <instance_effect url="#MLI-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="stickBox-mesh" name="stickBox">
+      <mesh>
+        <source id="stickBox-mesh-positions">
+          <float_array id="stickBox-mesh-positions-array" count="72">-0.1525 0.39 0.06499999 0.1525 0.57 0.06499999 0.1525 0.39 0.06499999 -0.1525 0.57 0.06499999 0.1775 0.39 0.21 0.1775 0.57 0.08999997 0.1775 0.57 0.21 0.1775 0.39 0.08999997 -0.1525 0.57 0.235 0.1525 0.39 0.235 0.1525 0.57 0.235 -0.1525 0.39 0.235 -0.1525 0.365 0.21 0.1525 0.365 0.21 0.1525 0.365 0.08999997 0.1525 0.595 0.21 -0.1775 0.57 0.08999997 -0.1525 0.595 0.08999997 -0.1775 0.39 0.08999997 -0.1775 0.57 0.21 -0.1775 0.39 0.21 0.1525 0.595 0.08999997 -0.1525 0.595 0.21 -0.1525 0.365 0.08999997</float_array>
+          <technique_common>
+            <accessor source="#stickBox-mesh-positions-array" count="24" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="stickBox-mesh-normals">
+          <float_array id="stickBox-mesh-normals-array" count="102">0 0 -1 1 0 0 0 0 1 0 -0.707107 0.7071067 0.7071065 -0.7071071 0 0.7071066 -0.707107 0 0.5773513 0.57735 0.5773496 0.5773503 -0.5773505 -0.57735 -0.5773513 0.57735 -0.5773496 -1 0 0 0.7071071 0 0.7071065 0.707107 0 -0.7071067 0.7071071 0 -0.7071065 0.7071074 0.7071062 0 0.7071075 0.7071062 0 -0.5773513 0.57735 0.5773496 0 0.7071077 -0.7071059 0 0.7071049 -0.7071087 0.5773501 -0.5773506 0.5773501 -0.7071075 0.7071062 0 -0.7071074 0.7071062 0 -0.5773503 -0.5773505 -0.57735 -0.7071065 -0.7071071 0 -0.7071066 -0.707107 0 0 0.7071049 0.7071087 0 0.7071077 0.7071059 0 -1 0 0 -0.707107 -0.7071067 -0.5773501 -0.5773506 0.5773501 -0.7071071 0 0.7071065 0.5773513 0.57735 -0.5773496 -0.7071071 0 -0.7071065 -0.707107 0 -0.7071067 0 1 0</float_array>
+          <technique_common>
+            <accessor source="#stickBox-mesh-normals-array" count="34" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="stickBox-mesh-vertices">
+          <input semantic="POSITION" source="#stickBox-mesh-positions"/>
+        </vertices>
+        <triangles material="MLI-material" count="44">
+          <input semantic="VERTEX" source="#stickBox-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#stickBox-mesh-normals" offset="1"/>
+          <p>0 0 1 0 2 0 1 0 0 0 3 0 4 1 5 1 6 1 5 1 4 1 7 1 8 2 9 2 10 2 9 2 8 2 11 2 12 3 9 3 11 3 9 3 12 3 13 3 14 4 4 4 13 4 4 5 14 5 7 5 15 6 10 6 6 6 7 7 14 7 2 7 3 8 16 8 17 8 18 9 19 9 16 9 19 9 18 9 20 9 9 10 6 10 10 10 6 10 9 10 4 10 7 11 1 11 5 11 1 12 7 12 2 12 6 13 21 13 15 13 21 14 6 14 5 14 22 15 19 15 8 15 3 16 21 16 1 16 21 17 3 17 17 17 9 18 13 18 4 18 16 19 22 19 17 19 22 20 16 20 19 20 23 21 18 21 0 21 18 22 12 22 20 22 12 23 18 23 23 23 22 24 10 24 15 24 10 25 22 25 8 25 23 26 13 26 12 26 13 26 23 26 14 26 0 27 14 27 23 27 14 27 0 27 2 27 11 28 20 28 12 28 20 29 8 29 19 29 8 29 20 29 11 29 5 30 1 30 21 30 0 31 16 31 3 31 16 32 0 32 18 32 21 33 22 33 15 33 22 33 21 33 17 33</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="stickBox" name="stickBox" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_geometry url="#stickBox-mesh" name="stickBox">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="MLI-material" target="#MLI-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>

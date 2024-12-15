@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <asset>
+    <contributor>
+      <author>Blender User</author>
+      <authoring_tool>Blender 3.0.1</authoring_tool>
+    </contributor>
+    <created>2024-12-05T09:16:33</created>
+    <modified>2024-12-05T09:16:33</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="MLI-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <diffuse>
+              <color sid="diffuse">0.1455734 0.2136071 0.2395516 1</color>
+            </diffuse>
+            <reflectivity>
+              <float sid="specular">0.779661</float>
+            </reflectivity>
+            <index_of_refraction>
+              <float sid="ior">1.45</float>
+            </index_of_refraction>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_images/>
+  <library_materials>
+    <material id="MLI-material" name="MLI">
+      <instance_effect url="#MLI-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="frameBox-mesh" name="frameBox">
+      <mesh>
+        <source id="frameBox-mesh-positions">
+          <float_array id="frameBox-mesh-positions-array" count="72">-0.23 -0.255 0.515 0.23 -0.255 0.515 -0.23 -0.255 0.24 0.23 -0.28 0.54 -0.23 -0.28 0.54 0.23 -0.57 0.54 0.23 -0.595 0.24 0.255 -0.57 0.515 0.23 -0.595 0.515 -0.23 -0.57 0.54 0.23 -0.57 0.215 -0.23 -0.57 0.215 0.23 -0.28 0.215 -0.23 -0.595 0.24 0.255 -0.57 0.24 0.255 -0.28 0.24 -0.255 -0.57 0.24 -0.255 -0.28 0.515 0.23 -0.255 0.24 -0.23 -0.595 0.515 0.255 -0.28 0.515 -0.23 -0.28 0.215 -0.255 -0.57 0.515 -0.255 -0.28 0.24</float_array>
+          <technique_common>
+            <accessor source="#frameBox-mesh-positions-array" count="24" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="frameBox-mesh-normals">
+          <float_array id="frameBox-mesh-normals-array" count="114">0 1 0 0 0 1 0.7071076 -0.7071061 0 0 0 -1 0 -1 0 0.7071076 -0.707106 0 1 0 0 -0.5773512 -0.5773503 -0.5773494 -0.707106 0 0.7071076 0.5773497 0.5773506 -0.5773506 0.5773512 -0.5773503 -0.5773494 0 -0.7071051 -0.7071086 0 -0.7071046 0.707109 -0.5773497 0.5773506 0.5773506 0.7071072 0.7071065 0 0 -0.7071068 -0.7071067 -0.7071076 -0.707106 0 0.7071072 0.7071064 0 -1 0 0 -0.5773512 -0.5773503 0.5773494 0.5773512 -0.5773503 0.5773494 0 -0.7071064 0.7071072 -0.7071076 -0.7071061 0 -0.7071075 0 -0.7071061 0.5773497 0.5773506 0.5773506 0 0.7071068 -0.7071067 0 0.7071064 -0.7071072 -0.7071072 0.7071065 0 -0.7071075 0 0.7071061 0.7071074 0 0.7071062 0.7071061 0 0.7071076 0.7071068 0 -0.7071068 0.7071074 0 -0.7071062 0 0.7071064 0.7071072 0 0.7071059 0.7071076 -0.7071072 0.7071064 0 -0.5773497 0.5773506 -0.5773506 -0.7071067 0 -0.7071069</float_array>
+          <technique_common>
+            <accessor source="#frameBox-mesh-normals-array" count="38" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="frameBox-mesh-vertices">
+          <input semantic="POSITION" source="#frameBox-mesh-positions"/>
+        </vertices>
+        <triangles material="MLI-material" count="44">
+          <input semantic="VERTEX" source="#frameBox-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#frameBox-mesh-normals" offset="1"/>
+          <p>0 0 1 0 2 0 3 1 4 1 5 1 6 2 7 2 8 2 5 1 4 1 9 1 10 3 11 3 12 3 6 4 8 4 13 4 14 5 7 5 6 5 14 6 15 6 7 6 13 7 16 7 11 7 4 8 17 8 9 8 18 9 15 9 12 9 6 10 10 10 14 10 13 11 11 11 6 11 2 0 1 0 18 0 19 12 8 12 9 12 13 4 8 4 19 4 0 13 17 13 4 13 15 14 1 14 20 14 6 15 11 15 10 15 12 3 11 3 21 3 19 16 16 16 13 16 18 17 1 17 15 17 17 18 16 18 22 18 9 19 22 19 19 19 8 20 7 20 5 20 9 21 8 21 5 21 22 22 16 22 19 22 11 23 16 23 21 23 20 24 1 24 3 24 7 6 15 6 20 6 12 25 2 25 18 25 21 26 2 26 12 26 0 27 23 27 17 27 9 28 17 28 22 28 3 29 7 29 20 29 5 30 7 30 3 30 10 31 15 31 14 31 12 32 15 32 10 32 4 33 1 33 0 33 3 34 1 34 4 34 2 35 23 35 0 35 21 36 23 36 2 36 23 18 16 18 17 18 21 37 16 37 23 37</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="frameBox" name="frameBox" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_geometry url="#frameBox-mesh" name="frameBox">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="MLI-material" target="#MLI-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>
