@@ -79,7 +79,7 @@ BTspaceZ = 3; // vertical space between gearplanes
 
 // Z clearance for head of Bscrew
 BscrewZ = 5;  // space between bearing and bottom frame
-BscrewR = screw_diameter(Bscrew)/2+0.1; // centerline to edge of plastic
+BscrewR = screw_diameter(Bscrew)/2+0.1; // screw centerline to edge of plastic
 BscrewIR = bearingIR(mainbearing) - BscrewR; // centerline of screws inside bearing
 BscrewOR = bearingOR(mainbearing) + BscrewR; // centerline of screws outside bearing
 
@@ -91,11 +91,17 @@ module screw_array(R,N=12,sinlimit=1.1)
             rotate([0,0,angle]) translate([R,0,0]) children();
 }
 
+// Inside screws hold the bearing inner ring to frameB
 module BscrewIR_array() {
-    translate(bearingTC) screw_array(BscrewIR,12,0.8) screw_3D(Bscrew);
+    translate(bearingTC) screw_array(BscrewIR,12,0.8) 
+        screw_3D(Bscrew, thru=2);
 }
+
+// Outside screws hold the bearing outer ring to frameT
+//   These get tapped into the plastic
 module BscrewOR_array() {
-    translate(bearingBC) screw_array(BscrewOR,16,0.7) rotate([180,0,0]) screw_3D(Bscrew);
+    translate(bearingBC) screw_array(BscrewOR,16,0.7) rotate([180,0,0]) 
+        screw_3D(Bscrew,thru=3,length=50);
 }
 
 
@@ -537,8 +543,8 @@ module retain_bearing_channel(enlargeR=0, enlargeH=0.75, accessholes=0,
                 cylinder(d=capD+0.5,h=50,center=true);
 }        
 
-// Tiny bit of assembly space around ring gears
-ring_gear_clearance=0.1;
+// Ring gears are printed at zero clearance, any needed clearance happens in the planets (easier to re-print if they wear)
+ring_gear_clearance=0.0;
 
 // 2D outline of bottom frame segment
 module frame_B_2D()
@@ -550,6 +556,13 @@ module frame_B_2D()
                 square([2*mainbearingR,1*inch],center=true); // support frame
             }
         }
+}
+
+// Makes children at possible motor orientations
+module motor_symmetry() {
+    for (flipY=[-1,+1]) for (flipX=[-1,+1])
+        scale([flipX,flipY,1])
+            children();
 }
 
 // Bottom ring gear: held by Bscrews
@@ -578,14 +591,18 @@ module frame_B()
         frame_steel(0);
         hull() retain_bearing_channel(enlargeR=0.2); // a little clearance
         
-        // space around motor shaft
-        translate(motor_gearC) cylinder(d=8,h=25);
-        
-        // Space for and shaft of reduce gear and/or manual override
-        for (flipY=[-1,+1]) scale([1,flipY,1]) // <- put one on each side
-        translate(reduce_gearC) {
-            scale([1,1,-1]) planet_carrier_bolt(extratap=20);
-            bevelcylinder(d=gear_OD(reducesun_gear)+1,h=reduce_gear_fullZ+1,bevel=1);
+        // Places motor could be mounted 
+        //   (motor plate is welded to steel frame, so can weld in several orientations)
+        motor_symmetry()
+        {
+            // space around motor shaft
+            translate(motor_gearC) cylinder(d=8,h=25);
+            
+            // Space for and shaft of reduce gear and/or manual override
+            translate(reduce_gearC) {
+                scale([1,1,-1]) planet_carrier_bolt(extratap=20);
+                bevelcylinder(d=gear_OD(reducesun_gear)+1,h=reduce_gear_fullZ+1,bevel=1);
+            }
         }
     }
 }
@@ -618,9 +635,9 @@ module frame_T()
             {
                 // Tapered dust cover over the bearing outside surface
                 hull() {
-                    cylinder(d=2+bearingOD(mainbearing),h=2-start);
+                    cylinder(d=3+bearingOD(mainbearing),h=2-start);
                     translate([0,0,2+BTspaceZ-start])
-                        cylinder(d=-5+bearingID(mainbearing),h=2);
+                        cylinder(d=-5+bearingID(mainbearing),h=5);
                 }
                 
                 linear_extrude(height=frame_TZ-start)
@@ -844,7 +861,7 @@ module frame_B_jig()
         clearance=0.3; 
         c3 = [0,2,2]*clearance; // space on inside of frame
         
-        wall = 1.6;
+        wall = 2.4;
         w3 = [-2,2,2]*wall; // enlarge steel base frame
         difference() {
             // Outside
@@ -910,9 +927,9 @@ module cutaway_demo()
 }
 
 
-cutaway_demo();
+//cutaway_demo();
 
-illustrate_frame();
+//illustrate_frame();
 //illustrate_covers();
 //illustrate_gears_2D();
 
@@ -920,7 +937,7 @@ illustrate_frame();
 
 //translate([0,-65,0]) printable_gears();
 //translate(-carrier_baseC) planet_carrier();
-//translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
+translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
 //rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
 
 //frame_T();
