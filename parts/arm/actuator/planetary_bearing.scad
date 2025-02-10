@@ -1,5 +1,6 @@
 /*
- Robot joint designed around a planetary gearset that hangs on a single pivot bearing.
+ Robot joint designed around a planetary gearset that hangs on a single 
+ large pivot bearing.
 
  #10-24 steel screws hold the printed parts to the bearing and a steel tubes. 
  
@@ -29,9 +30,11 @@
         - The sun gear, frameB, carrier, and planets are now assembled, and stay together as a unit.
 
  
- FIXME:
-    - Design cordless drill manual drive slot, so you can time it for disassembly if the motor breaks. 
+FIXME: near term
+    - Design cordless drill manual drive slot, so you can time it for disassembly without using the motor.
     - Design 3D printed wire guide / encoder magnet holder parts (standardize on 7/8" wire hole in the steel?)
+
+Possible future expansion:
     - Center the boundary between gearplanes, leaving more wire room on top above the carrier?
     - Consider a print-in-place design, for a lower labor assembly? 
  
@@ -46,6 +49,10 @@ include <AuroraSCAD/bevel.scad>;
 $fs=0.1; $fa=3;
 
 inch = 25.4; // file units: mm
+
+// Steel structural tube frame
+framethick = 1.0*inch + 0.2; // some print clearance, for assembly
+frameSteel = [4.5*inch,framethick,framethick];
 
 // Central space for wiring
 wireholeID = 22.0; // 0.75*inch; // diameter for wiring: 18mm is enough for a USB A plug
@@ -63,6 +70,7 @@ wireslope = 3.0; // taper outward smoothly
  That'd be 1.3 - 3.8 kN axial. 
 */
 mainbearing = bearing_6815;
+mainbearing_clearance = 0.2; // printed-in clearance around bearing surface
 bearingBC = [0,0,-bearingZ(mainbearing)]; // center of bearing bottom face
 bearingTC = [0,0,0]; // center of bearing top face
 
@@ -149,7 +157,6 @@ frame_B_thick=BscrewZ+2.5; // height of bottom ring gear plate, under bearing
 frame_TZ = 22; // height of top ring gear and cover
 
 
-sundrive_bearing = bearing_6704;
 carrier_bearing = bearing_6704;
 carrier_bearingC=gearTC+[0,0,gearZ+Ptopcap];
 
@@ -163,7 +170,8 @@ geartypeMR = geartype_550; // motor output gear
 motor_gearZ=9;
 geartypeM = geartype_create(geartypeMR[0],motor_gearZ,geartypeMR[2]);
 
-sundrive_gearZ = 12;
+sundrive_gearZ = 12; // thickness of sun drive gear
+sundrive_lips = 0; // 1: retain sundrive to carrier using lip bearings. 0: no bearings
 geartypeS = geartype_create(geartypeM[0],sundrive_gearZ,geartypeM[2]);
 
 // Drives sun gear above
@@ -313,18 +321,25 @@ carrier_retainOH = carrier_retainIH+2*carrier_retainZT; // outside height
 
 // Makes children at center of each planet carrier thru bolt
 module planet_carrier_bolts() {
-
+    top = Pheight+Ptop-3;
+    
     // Top-down bolts through planet gears
     gearplane_planets(gearplaneB) 
-        translate([0,0,Pheight+Ptop-3])
+        translate([0,0,top])
             children();
 
-    // Bottom-up bolts through sun retain bearings
     rotate([0,0,carrier_retainA])
     gearplane_planets(gearplaneB) 
-        translate([0,0,carrier_retainZ]) 
-            scale([1,1,-1]) // facing up
+        if (sundrive_lips) {
+            // Bottom-up bolts through sun retain bearings
+                translate([0,0,carrier_retainZ]) 
+                    scale([1,1,-1]) // facing up
+                        children();
+        }
+        else { // Top-down bolts for steel stiffened carrier
+            translate([0,0,top])
                 children();
+        }
 }
 
 // Cap of bolts used to retain planet carrier
@@ -408,14 +423,28 @@ module planet_carrier() {
                     planet_carrier2D();
                     circle(r=6+gear_OR(gearplane_Sgear(gearplaneB))+tipclear);
                 }
-                offset(r=-8) planet_carrier2D(); // inside walls
+                carrierID = 1.0+wireS[0]*(wireholeID+2*wirewall);
+                circle(d=carrierID);
+                // inside wall space, tuned to not hit the wiring funnel
+                //offset(r=-9.5) planet_carrier2D();
             }
             //planet_carrier_bolts() circle(r=carrier_boltR);
         }
         
-        // Clearance for tips of the larger sun gear
+        // Clearance for teeth of the larger sun gear
         translate(carrier_baseC+[0,0,-0.01])
-            cylinder(r=gear_OR(gearplane_Sgear(gearplaneB))+0.5*tipclear,h=Pbase+Pheight+tipclear);
+        {
+            r = gear_OR(gearplane_Sgear(gearplaneB))+0.5*tipclear;
+            h = gearTC[2] - carrier_baseC[2]+tipclear;
+            b = 3; 
+            bevelcylinder(d=2*r,h=h,bevel=b);
+            // wiring clearance on top
+            translate([0,0,Pbase+Pheight+Ptop+1])
+            {
+                bevelcylinder(d=2*r,h=2*b+0.1,bevel=b,center=true);
+                
+            }
+        }
         
         translate(carrier_bearingC) hull() bearing3D(carrier_bearing);
         
@@ -434,6 +463,7 @@ module planet_carrier() {
             planet_carrier_bolt();
         
         // Space for bearings on bottom, to retain sundrive gear
+        if (sundrive_lips) 
         translate(gearBC)
         rotate([0,0,carrier_retainA])
         gearplane_planets(gearplaneB) 
@@ -445,11 +475,19 @@ module planet_carrier() {
         
         // Space for lips that cling to retain bearings
         lipclear=0.5;
+        if (sundrive_lips) 
         translate(gearBC + [0,0,carrier_retainZ-carrier_retainZT])
         {
             bevelcylinder(d=2*(carrier_retainOR+lipclear),h=carrier_retainOH+lipclear,bevel=carrier_retainB);
         }
         
+        // Space around sun gear
+        if (!sundrive_lips)
+        {
+            ID = gear_ID(gearplane_Sgear(gearplaneB));
+            translate(gearBC+[0,0,1]) scale([1,1,-1])
+                cylinder(d1=ID, d2=ID+12,h=gearBC[2]-sundrive_gearC[2]-sundrive_gearZ);
+        }
     }
 }
 
@@ -473,7 +511,7 @@ module planet_gear_minus() {
 }
 
 // Planet gear set
-module planet_gears()
+module planet_gears(clearance=0.05)
 {
     extratooth = 3; // extend gear teeth in Z this far, for strength
     h = gearZ+extratooth;
@@ -481,12 +519,12 @@ module planet_gears()
         union() {
             gearplane_planets(gearplaneB) {
                 translate(gearBC) 
-                    gear_3D(gearplane_Pgear(gearplaneB),height=h); 
+                    gear_3D(gearplane_Pgear(gearplaneB),height=h,clearance=clearance); 
                 ride_planet();
             }
             gearplane_planets(gearplaneT) {
                 translate(gearTC-[0,0,extratooth]) 
-                    gear_3D(gearplane_Pgear(gearplaneT),height=h);
+                    gear_3D(gearplane_Pgear(gearplaneT),height=h,clearance=clearance);
             }
         }
         gearplane_planets(gearplaneB)
@@ -553,7 +591,7 @@ module frame_B_2D()
             circle(r=mainbearingR);
             hull() {
                 circle(r=frameB_outsideR); // plate under ring
-                square([2*mainbearingR,1*inch],center=true); // support frame
+                square([2*mainbearingR,framethick],center=true); // support frame
             }
         }
 }
@@ -609,6 +647,10 @@ module frame_B()
 
 
 
+// Wire thru hole in frame_T: may have a second sleeve inserted
+wireTC = bearingTC + [0,0,frameT_clearZ];
+wireS = [1.2,1,-1]; // <- scaled wider for extra room, and key for rotation
+wirewall=1.2;
 
 // Sloped entrance to wiring channel of this diameter.
 module wire_funnel(OD)
@@ -621,13 +663,8 @@ module wire_funnel(OD)
 
 
 // Top ring gear and frame: held by Bscrews
-module frame_T()
+module frame_T(limit_frameOD=500)
 {
-    // Wire thru hole: may have a second sleeve inserted
-    wireTC = bearingTC + [0,0,frameT_clearZ];
-    wireS = [1.2,1,-1]; // <- wider for extra room, and key for rotation
-    wirewall=1.2;
-    
     start=-bearingZ(mainbearing)+0.01; // Z coordinate where this object begins (amount of bearing to cover)
     difference() {
         union() {
@@ -648,6 +685,8 @@ module frame_T()
                             
                 }
             }
+            
+            children();
         }
         
         // Inside ring gear teeth
@@ -669,8 +708,13 @@ module frame_T()
         }
         //translate(carrier_bearingC) hull() bearing3D(carrier_bearing);
 
-        frame_steel();
-        translate(bearingBC) cylinder(d=bearingOD(mainbearing),h=bearingZ(mainbearing));
+        intersection() {
+            frame_steel();
+            cylinder(d=limit_frameOD,h=100,center=true);
+        }
+        
+        translate(bearingBC) 
+            cylinder(d=bearingOD(mainbearing)+mainbearing_clearance,h=bearingZ(mainbearing)+mainbearing_clearance);
         
         translate(bearingTC+[0,0,-0.01+start]) {
             // Space above moving bearing surface
@@ -706,8 +750,8 @@ module sundrive_gear_whole()
                 // Straight wall all the way up to top gears
                 cylinder(d=ID,h=gearTC[2]-DT[2]-0.5);
                 
-                // Tapered transition
-                cylinder(d1=16+ID,d2=ID,h=gearBC[2]-DT[2]+1.0);
+                // Tapered transition up to sun gear teeth
+                cylinder(d1=12+ID,d2=ID,h=gearBC[2]-DT[2]);
                 //for (t=[0:3]) cylinder(d1=6-t+ID,d2=ID,h=2+t);
             }
             
@@ -718,6 +762,7 @@ module sundrive_gear_whole()
                     gear_3D(S,height=gearZ+BTspaceZ-1.0, clearance=0.0);
             
             // Lips that cling to retain bearings
+            if (sundrive_lips) 
             translate(gearBC + [0,0,carrier_retainZ-carrier_retainZT])
             {
                 bevelcylinder(d=2*(carrier_retainOR),h=carrier_retainOH,bevel=carrier_retainB);
@@ -725,7 +770,7 @@ module sundrive_gear_whole()
         }
         
         // Retain bearings, holding sun to carrier
-        retain_bearing_channel(accessholes=1);
+        if (sundrive_lips) retain_bearing_channel(accessholes=1);
         
         // Space for ride protrusions on planets
         translate(rideC) rotate_extrude() {
@@ -736,7 +781,7 @@ module sundrive_gear_whole()
         }
         
         // Retain bearings holding sun to bottom frame
-        for (inset=[0,1.0])
+        if (sundrive_lips) for (inset=[0,1.0])
         retain_bearing_channel(accessholes=0, bearing=retainsunB_bearing, R=retainsunB_R-inset, Z=retainsunB_Z, flip=1);
         
         
@@ -761,8 +806,6 @@ frameBevel = 0.7;
 frameBC = bearingBC + [0,0,-BscrewZ-0.5*frameZ]; // Center of bottom frame bar
 frameTC = bearingTC + [0,0,0.5*frameZ]; // Center of top frame bar
 
-// Outside dimensions of frame
-frameSteel = [4.5,1,1]*inch;
 
 /*
  Drive motor
@@ -773,11 +816,11 @@ motorC = [motor_gearC[0],motor_gearC[1],frameBC[2]-frameZ/2-motorplateZ];// cent
 motorA = [0,0,360/6/2]; // angle of rotation (mostly to align the mount screws)
 
 // Clearance cut on top frame steel
-module frameT_clearance() {
+module frameT_clearance(extraZ=0) {
     // Top tube clearance cut
-    translate(bearingTC+[0,0,-0.01]) {
-        bevelcylinder(d=2*frameT_clearR,h=frameT_clearZ,bevel=frameT_bevel);
-        cylinder(r=frameT_clearR,h=frameT_clearZ/2); // bottom, no bevel
+    translate(bearingTC+[0,0,-0.01-extraZ]) {
+        bevelcylinder(d=2*frameT_clearR,h=frameT_clearZ+extraZ,bevel=frameT_bevel);
+        cylinder(r=frameT_clearR,h=frameT_clearZ/2+extraZ); // bottom, no bevel
     }
 }
 // Clearance cut on bottom frame steel
@@ -884,6 +927,38 @@ module frame_B_jig()
     }
 }
 
+// Jig for manufacturing metal frame top stick
+module frame_T_jig()
+{
+    rotate([0,90,0])
+    {
+        clearance=0.3; 
+        c3 = [0,2,2]*clearance; // space on inside of frame
+        
+        wall = 2.4;
+        w3 = [-2,2,2]*wall; // enlarge steel base frame
+        difference() {
+            // Outside
+            translate(frameTC) bevelcube(frameSteel+w3,bevel=frameBevel,center=true);
+            
+            // Tube hole
+            translate(frameTC) bevelcube(frameSteel+c3,bevel=frameBevel,center=true);
+            
+            frameT_clearance(5);
+            BscrewOR_array();
+            motorplate3D();
+            cover_mount_holes();
+            
+            // wiring space (drill bit alignment hole)
+            cylinder(d=2*3.2,h=100,center=true);
+
+            // chop end flat
+            translate([104,0,0]) cube([100,100,100],center=true);
+        }
+    }
+}
+
+
 
 module illustrate_covers() {
     frame_T();
@@ -902,14 +977,21 @@ module illustrate_frame() {
     #BscrewOR_array();
 }
 
+// All large gears
 module printable_gears(withmotor=0) 
 {
-    translate(-carrier_baseC) planet_carrier();
-    translate(-(gearBC+[1.2*mainbearingR,0,0])) rotate([0,0,45]) planet_gears();
-    //translate(-gearTC) sunidler_gear_whole();
+    translate(-carrier_baseC) rotate([0,0,45]) planet_carrier();
     translate(-sundrive_gearC+[1.4*mainbearingR,0,0]) sundrive_gear_whole();
-    translate(-reduce_gearC+[0,1.1*mainbearingR,0]) reduce_gear_whole();
+    translate(-reduce_gearC+[0,-1.1*mainbearingR,0]) reduce_gear_whole();
     if (withmotor) translate(-motor_gearC) motor_gear_whole();
+    
+    //translate(-gearTC) sunidler_gear_whole(); // no longer used
+}
+
+// Small planet gears (often needs a brim to stay stuck down)
+module printable_planets() 
+{
+    translate(-(gearBC+[1.2*mainbearingR,0,0])) rotate([0,0,45]) planet_gears();
 }
 
 module cutaway_demo()
@@ -935,7 +1017,8 @@ module cutaway_demo()
 
 //#BscrewIR_array();
 
-//translate([0,-65,0]) printable_gears();
+//translate([0,-70,0]) printable_gears();
+//printable_planets();
 //translate(-carrier_baseC) planet_carrier();
 translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
 //rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
@@ -945,6 +1028,9 @@ translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
 //sundrive_gear_whole();
 //reduce_gear_whole();
 
-//motorplate_jig();
-//frame_B_jig();
+//motorplate2D(); // DXF for cutting
+//motorplate_jig(); // 3D printed jig
+//frame_B_jig(); // bottom steel cut/mark jig
+//frame_T_jig(); // top steel cut/mark jig
+
 
