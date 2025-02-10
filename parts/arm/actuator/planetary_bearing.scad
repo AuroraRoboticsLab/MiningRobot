@@ -171,7 +171,7 @@ motor_gearZ=9;
 geartypeM = geartype_create(geartypeMR[0],motor_gearZ,geartypeMR[2]);
 
 sundrive_gearZ = 12; // thickness of sun drive gear
-sundrive_lips = 0; // 1: retain sundrive to carrier using lip bearings. 0: no bearings
+sundrive_lips = 1; // 1: retain sundrive to carrier using lip bearings. 0: no bearings (easier to assemble, but more wear)
 geartypeS = geartype_create(geartypeM[0],sundrive_gearZ,geartypeM[2]);
 
 // Drives sun gear above
@@ -578,7 +578,7 @@ module retain_bearing_channel(enlargeR=0, enlargeH=0.75, accessholes=0,
     if (accessholes) translate(gearBC + [0,0,carrier_retainZ])
         rotate([0,0,carrier_retainA])
             gearplane_planets(gearplaneB) 
-                cylinder(d=capD+0.5,h=50,center=true);
+                cylinder(d=capD+0.8,h=50,center=true);
 }        
 
 // Ring gears are printed at zero clearance, any needed clearance happens in the planets (easier to re-print if they wear)
@@ -638,8 +638,8 @@ module frame_B()
             
             // Space for and shaft of reduce gear and/or manual override
             translate(reduce_gearC) {
-                scale([1,1,-1]) planet_carrier_bolt(extratap=20);
-                bevelcylinder(d=gear_OD(reducesun_gear)+1,h=reduce_gear_fullZ+1,bevel=1);
+                translate([0,0,8]) scale([1,1,-1]) planet_carrier_bolt(extratap=15);
+                bevelcylinder(d=gear_OD(reducesun_gear)+1.5,h=reduce_gear_fullZ+1,bevel=1);
             }
         }
     }
@@ -780,9 +780,11 @@ module sundrive_gear_whole()
                     bevelsquare([rideTD,rideZ],bevel=rideB,center=true);
         }
         
-        // Retain bearings holding sun to bottom frame
+        /*
+        // Retain bearings holding sun to bottom frame (not needed)
         if (sundrive_lips) for (inset=[0,1.0])
         retain_bearing_channel(accessholes=0, bearing=retainsunB_bearing, R=retainsunB_R-inset, Z=retainsunB_Z, flip=1);
+        */
         
         
         // Wiring thru hole
@@ -1009,7 +1011,8 @@ module cutaway_demo()
 }
 
 
-//cutaway_demo();
+// Illustrations:
+cutaway_demo();
 
 //illustrate_frame();
 //illustrate_covers();
@@ -1017,18 +1020,27 @@ module cutaway_demo()
 
 //#BscrewIR_array();
 
-//translate([0,-70,0]) printable_gears();
-//printable_planets();
-//translate(-carrier_baseC) planet_carrier();
-translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
-//rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
-
 //frame_T();
 //frame_B();
 //sundrive_gear_whole();
 //reduce_gear_whole();
 
-//motorplate2D(); // DXF for cutting
+
+// Printable batches: "Bottomset":
+//translate([0,-70,0]) printable_gears();
+//translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
+
+//printable_planets();
+
+//rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
+
+
+// Spares:
+//translate(-carrier_baseC) planet_carrier();
+
+
+// Computer Aided Manufacturing (CAM) jigs:
+//motorplate2D(); // DXF for plasma cutting
 //motorplate_jig(); // 3D printed jig
 //frame_B_jig(); // bottom steel cut/mark jig
 //frame_T_jig(); // top steel cut/mark jig
