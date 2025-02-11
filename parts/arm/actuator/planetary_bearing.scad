@@ -4,9 +4,9 @@
 
  #10-24 steel screws hold the printed parts to the bearing and a steel tubes. 
  
- As designed gear reduction ratio: 1300:1 (!)
+ As designed gear reduction ratio: 2500:1 (!)
  Target is to get from like 12K rpm (for a 12V x 1000 RPM/V brushless motor),
- down to like 10 rpm (60 deg/sec) for a robot arm joint. 
+ down to like 5 rpm (30 deg/sec) for a robot arm joint. 
  
  The planet carrier is constrained by cone-shaped 'ride' 
  protrusions in the middle of the stepped planets.
@@ -121,7 +121,11 @@ gearplaneB = [geartypeB, 32, 12, nplanets];
 gearBC = bearingBC + [0,0,0]; // bottom gearplance start
 
 // Top (T) output gearplane
-gearplaneT = gearplane_stepped(gearplaneB, +1/2);
+gearplaneT = gearplane_stepped(gearplaneB, +1/4);
+
+gearplane_print(gearplaneB,"B");
+gearplane_print(gearplaneT,"T");
+
 gearTC = gearBC + [0,0,gearZ + BTspaceZ]; // top gearplane start
 
 // Ride cylinder aligns each planet
@@ -220,7 +224,7 @@ retainsunB_Z = sundrive_gearC[2]+2; // bottom of mounting screw cap
 
 
 // Draw 2D version of all gears
-module illustrate_gears_2D() 
+module illustrate_gears_2D(animate=0) 
 {
     color(0.7*[0,1,1]) translate(gearBC) gearplane_2D(gearplaneB);
     translate(gearTC) gearplane_2D(gearplaneT);
@@ -228,6 +232,15 @@ module illustrate_gears_2D()
     translate(reduce_gearC) gear_2D(reducemotor_gear);
     translate(motor_gearC) gear_2D(motor_gear);
 }
+
+// Animated version of planetary gearset
+module animate_gears_2D() {
+    gearplane_2D(gearplaneB,aligned=1,animate=$t);
+
+    translate([0,0,10]) color([0.2,0.3,0.7])
+    gearplane_2D(gearplaneT,aligned=0,animate=$t,drawS=0);
+}
+
 
 // 3D illustration of geartrain
 module illustrate_gears() 
@@ -522,7 +535,7 @@ module planet_gears(clearance=0.05)
                     gear_3D(gearplane_Pgear(gearplaneB),height=h,clearance=clearance); 
                 ride_planet();
             }
-            gearplane_planets(gearplaneT) {
+            gearplane_planets(gearplaneT,0) {
                 translate(gearTC-[0,0,extratooth]) 
                     gear_3D(gearplane_Pgear(gearplaneT),height=h,clearance=clearance);
             }
@@ -530,9 +543,31 @@ module planet_gears(clearance=0.05)
         gearplane_planets(gearplaneB)
             planet_gear_minus();
         
+        /*
+        // Text labels on top bearing face (almost illegible)
         translate(gearBC+[0,0,Pheight - bearingZ(planet_bearing)]) 
             planet_numbers();
+        */
+        
+        translate(rideC) 
+            planet_number_grooves();
+        
     }
+}
+
+// Carve grooves into the planets, so you can get them in the right slots.
+//   Carves up from Z=0 plane, around each planet's central ride cylinder
+module planet_number_grooves() {
+    grooveZ=1.0;
+    for (i=[1:nplanets]) rotate([0,0,i*360/nplanets])
+        translate([0,gearplane_Oradius(gearplaneB),+0.01])
+        for (copy=[0,180]) rotate([0,0,copy])
+        {
+            for (pip=[1:i]) rotate([0,0,pip*20])
+                translate([rideTD/2-1.1,0,-grooveZ/2])
+                    rotate([0,0,-45])
+                        bevelcube([3,3,grooveZ],bevel=grooveZ/3);
+        }
 }
 
 // Carve numbers into the planets, so you can get them in the right slots.
@@ -796,8 +831,9 @@ module sundrive_gear_whole()
 
 
 
-
-echo("Reduction ratio: ",reduce_ratio * sundrive_gearR / motor_gearR * gearplane_stepped_ratio(gearplaneB,gearplaneT));
+stepped_ratio = gearplane_stepped_ratio(gearplaneB,gearplaneT);
+echo("Sun to rings reduction:",stepped_ratio);
+echo("Total reduction ratio: ",reduce_ratio * sundrive_gearR / motor_gearR * stepped_ratio);
 echo("Gear pitches: ",geartype_Dpitch(geartypeM),geartype_Dpitch(geartypeB),geartype_Dpitch(gearplane_geartype(gearplaneT)));
 echo("Wiring channel: ",wireholeOD," in sun gear: ",gear_ID(gearplane_Sgear(gearplaneT)));
 echo("Motor gear center: ",motor_gearC);
@@ -996,7 +1032,8 @@ module printable_planets()
     translate(-(gearBC+[1.2*mainbearingR,0,0])) rotate([0,0,45]) planet_gears();
 }
 
-module cutaway_demo()
+// Section in XY plane
+module cutaway_gearbox()
 {
     difference() { 
         union() {
@@ -1004,31 +1041,49 @@ module cutaway_demo()
             frame_B();
             frame_T();
         }
-        for (cutangle=[0,45]) rotate([0,0,cutangle])
+        for (cutangle=[0,45]) color([1,0,0]) rotate([0,0,cutangle])
         translate([0,0,-100]) cube([200,200,200]);
     }
     reduce_gear_whole();
 }
 
+// Section along Z
+module cutaway_gearZ()
+{
+    intersection() {
+        union() {
+            frame_T();
+            frame_B();
+            //#planet_carrier();
+            sundrive_gear_whole();
+            planet_gears();
+        }
+        translate(gearTC) color([1,0,0]) 
+            cube([200,200,10],center=true);
+    }
+}
 
 // Illustrations:
-cutaway_demo();
+//cutaway_gearbox();
+//cutaway_gearZ();
 
 //illustrate_frame();
 //illustrate_covers();
 //illustrate_gears_2D();
+//animate_gears_2D();
 
 //#BscrewIR_array();
 
 //frame_T();
 //frame_B();
+//planet_carrier();
 //sundrive_gear_whole();
 //reduce_gear_whole();
 
 
 // Printable batches: "Bottomset":
-//translate([0,-70,0]) printable_gears();
-//translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
+translate([0,-70,0]) printable_gears();
+translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
 
 //printable_planets();
 
