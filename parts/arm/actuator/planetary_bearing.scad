@@ -299,6 +299,35 @@ module reduce_gear_whole()
     }
 }
 
+// Cordless drill manual operation (e.g., for repairing motor)
+module reduce_cordless_stick()
+{
+    gOD = gear_OD(reducesun_gear);
+    OD=0.375*inch; // narrower to fit in smaller drill chuck 
+    stickZ=50; // length of stick needs to extend past frame and circuits
+    bevel=2; // long stick part, goes in drill chuck
+    
+    difference() {
+        union() {
+            tooth=sundrive_gearZ+6; // length of toothed portion
+            gear_3D(reducesun_gear, height=tooth+bevel);
+            
+            tipZ=1.0; // front cylinder Z thickness
+            bevelcylinder(d=gOD-1.5,h=tipZ*2+0.3,bevel=tipZ); // round off tip
+            
+            // long stick portion
+            translate([0,0,tooth-bevel])
+                bevelcylinder(d=OD,h=stickZ,bevel=bevel);
+        }
+        
+        // make it a tube, lighter and stronger
+        cylinder(d=OD*0.5,h=200,center=true);
+    }
+}
+
+
+
+
 
 
 
@@ -1080,14 +1109,14 @@ module cutaway_gearZ()
 //sundrive_gear_whole();
 //reduce_gear_whole();
 
-
 // Printable batches: "Bottomset":
-translate([0,-70,0]) printable_gears();
-translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
+//translate([0,-70,0]) printable_gears();
+//translate(-(gearBC-[0,0,frame_B_thick])) frame_B();
 
 //printable_planets();
 
 //rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
+reduce_cordless_stick();
 
 
 // Spares:
