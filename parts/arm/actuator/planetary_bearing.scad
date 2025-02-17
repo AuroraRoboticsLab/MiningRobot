@@ -16,8 +16,9 @@
  As-built: on a 0.5 meter steel level arm, backdrive force is greater than 10 kgf (100N, 200 N-m).
  Motor driven torque is about 6-7kgf at 0.5m (120-140 N-m) before the top cover ring gear slips.
  (Tested with PLA+, printed at just 25% infill and 3 perimeters.)
- 
+ Has cordless drill manual drive slot, so you can reorient and time it for disassembly without using the motor.
 
+ 
  Assembly order:
     - Add tiny 683ZZ bearings to the ends of the planet gears
     - Thread planet gears to carrier with M3x30 screws
@@ -28,10 +29,10 @@
         - Rotate to each side and add four 623ZZ guide bearings between sun and carrier.
         - Line up the sun access holes with the guide bearings and secure with M3x30mm bolts.
         - The sun gear, frameB, carrier, and planets are now assembled, and stay together as a unit.
+    
 
  
 FIXME: near term
-    - Design cordless drill manual drive slot, so you can time it for disassembly without using the motor.
     - Design 3D printed wire guide / encoder magnet holder parts (standardize on 7/8" wire hole in the steel?)
 
 Possible future expansion:
@@ -54,14 +55,6 @@ inch = 25.4; // file units: mm
 framethick = 1.0*inch + 0.2; // some print clearance, for assembly
 frameSteel = [4.5*inch,framethick,framethick];
 
-// Central space for wiring
-wireholeID = 22.0; // 0.75*inch; // diameter for wiring: 18mm is enough for a USB A plug
-wireholeOD = 26.0; // hole through sun gear
-wiretubeOD = wireholeOD-1.0; // non-spinning tube for wire protection. Also holds encoder magnet?
-wireslope = 3.0; // taper outward smoothly
-
-
-
 /*
  Main pivot bearing: secures primary metal part loads together.
  
@@ -76,7 +69,6 @@ bearingTC = [0,0,0]; // center of bearing top face
 
 // Halfway out is the handoff between the bearing halves
 mainbearingR = (bearingIR(mainbearing)+bearingOR(mainbearing))/2;
-
 
 /* 
 Screws that mount plastic parts to the bearing.
@@ -111,6 +103,24 @@ module BscrewOR_array() {
     translate(bearingBC) screw_array(BscrewOR,16,0.7) rotate([180,0,0]) 
         screw_3D(Bscrew,thru=3,length=50);
 }
+
+
+// Steel frame parameters
+frameZ = 1.0*inch; // thickness of steel frame bar
+frameBevel = 0.7;
+frameBC = bearingBC + [0,0,-BscrewZ-0.5*frameZ]; // Center of bottom frame bar
+frameTC = bearingTC + [0,0,0.5*frameZ]; // Center of top frame bar
+
+
+// Central space for wiring
+wireholeID = 22.0; // 0.75*inch; // diameter for wiring: 18mm is enough for a USB A plug
+wireholeOD = 26.0; // hole through sun gear
+wiretubeOD = wireholeOD-1.0; // non-spinning tube for wire protection. Also holds encoder magnet?
+wireslope = 3.0; // taper outward smoothly
+
+wiretubeClear = 0.15; // space around wire tube entrance
+encoderholeZ = frameBC[2]-framethick/2-1; // Z coordinate of the encoder hole outlet
+magnetZ = frameBC[2]-framethick/2-12; // top of the magnet
 
 
 // Bottom (B) input gearplane: sun driven by motor
@@ -184,9 +194,9 @@ sundrive_gearR = gear_R(sundrive_gear);
 sundrive_gearC = bearingBC - [0,0,frame_B_thick+0.5+sundrive_gearZ];
 
 
-frameT_clearR = mainbearingR;
+frameT_clearR = 3+gear_OR(gearplane_Rgear(gearplaneT)); // mainbearingR;
 frameT_clearZ = 20;
-frameT_bevel = frameT_clearZ/2-0.01; // heavy radius, for strength
+frameT_bevel = 6; // heavy radius, for strength
 frameB_clearR = gear_OR(sundrive_gear)+2.0; // frame cut to clear sundrive gear
 frameB_outsideR = bearingIR(mainbearing)+3.0; // material outside main bearing
 
@@ -610,6 +620,18 @@ module planet_numbers() {
             }
 }
 
+
+// Holds planets for drilling operations
+module planet_jig() {
+    difference() {
+        bevelcube([42,16,11],bevel=1);
+        translate([8,8,2])
+            gear_3D(gearplane_Pgear(gearplaneB),height=20,clearance=-0.2);
+    }
+}
+
+
+
 // Channel that carrier retain bearings run in, used by sun gear and bottom ring
 //    (R,Z) is the center of the bottom of the retaining bolt cap.
 // Leaves space for M3 retaining bolts
@@ -641,8 +663,20 @@ module retain_bearing_channel(enlargeR=0, enlargeH=0.75, accessholes=0,
     // Access holes through sun to tighten M3 screws that retain bearings
     if (accessholes) translate(gearBC + [0,0,carrier_retainZ])
         rotate([0,0,carrier_retainA])
-            gearplane_planets(gearplaneB) 
-                cylinder(d=capD+0.8,h=50,center=true);
+            //gearplane_planets(gearplaneB) 
+            for (angle=[0:360/nplanets:360-1]) rotate([0,0,angle])
+            translate([gearplane_Oradius(gearplaneB),0,0])
+            {
+                OD=capD+0.8;
+                cylinder(d=OD,h=50,center=true);
+                flare=1.5; // bevel entrance, to avoid hanging up on bolt heads if not fully seated
+                translate([0,0,-capZ+0.1]) rotate([180,0,0])
+                hull() {
+                    scale([0.7,1,1])
+                    cylinder(d1=flare*2+OD,d2=OD,h=flare);
+                    cylinder(d=OD,h=flare);
+                }
+            }
 }        
 
 // Ring gears are printed at zero clearance, any needed clearance happens in the planets (easier to re-print if they wear)
@@ -725,33 +759,266 @@ module wire_funnel(OD)
         cylinder(d2=OD, d1=OD+2*slope-2*ds, h=slope+ds);
 }
 
+// Center top of magnet for the angle encoder
+magnetC = [0,0,magnetZ];
+magnetOD = 5;
+magnetX = 5;
+magnetW = 1.6; // wall around magnet
 
-// Top ring gear and frame: held by Bscrews
-module frame_T(limit_frameOD=500)
+// Magnet area stiffened (or attached) with a stainless M3 bolt
+//  This is the top of the bolt
+magboltC = magnetC + [-wireholeID/2+2.6,0,3.5];
+
+// Cut groove for detachable magnet goes through here
+magcutC = magboltC + [0,0,8.5];
+
+// Spot where encoder goes through steel frame
+encoderholeC = [0,0,encoderholeZ];
+
+// Solid outer block tube with this diameter
+module wire_encoder_solid(OD_raw,enlarge=0,enlargeZ=0) {
+    OD = OD_raw + 2*enlarge;
+    dZ = enlargeZ*0.01;
+    h=0.1;
+    bias = 0.1*enlarge; // smooths transition to funnel
+
+    translate(wireTC) scale(wireS) 
+        translate([0,0,-dZ]) wire_funnel(OD+bias);
+    
+    // Transition region from funnel to tube
+    transitionC=[0,0,+5];
+    hull() {
+        translate(wireTC) scale(wireS) 
+            translate([0,0,3-dZ]) cylinder(d=OD+0.5, h=h);
+        translate(transitionC)
+            cylinder(d=OD, h=h);
+    }
+    
+    // Transition to steel frame
+    difference() {
+        hull() {
+            translate(transitionC)
+                cylinder(d=OD, h=h);
+            translate(encoderholeC-[0,0,dZ])
+                cylinder(d=OD, h=h);
+        }
+    }
+}
+
+// Magnet encoder object, on end of wire tube
+module wire_magnet(OD) 
 {
-    start=-bearingZ(mainbearing)+0.01; // Z coordinate where this object begins (amount of bearing to cover)
+    h=0.01;
+    difference() {
+        
+        for (baseconnect=[0,1])
+        hull() {
+            // Base of cylinder
+            difference() {
+                translate(encoderholeC+[0,0,0])
+                    cylinder(d=OD, h=h);
+                translate(encoderholeC+[14,0,0]) cube([40,40,40],center=true);
+            }
+            
+            if (baseconnect==0) {
+                // Top magnet space
+                translate(magnetC)
+                    bevelcylinder(d=10, h=magnetOD+magnetW, bevel=1);
+                // Back bolt space
+                translate(magboltC) scale([1,1,-1])
+                    bevelcylinder(d=4,h=3.5,bevel=1);
+            }
+            else {
+                // Taper up to back bolt
+                translate(magnetC+[-wireholeID/2+0.5,0,3])
+                    cylinder(d=0.1,h=30);
+            }
+        }
+        
+        
+        // Space to insert magnet
+        hull() for (insert=[0,1])
+            translate(magnetC+insert*[0,0,magnetOD/2])
+                rotate([0,90,0])
+                    cylinder(d=magnetOD,h=magnetX,center=true);
+        
+    }
+}
+
+// Tube that wraps around thru wires, and holds encoder magnet.
+//  Faces in -Z direction.  This version is one piece.
+module wire_encoder() 
+{
+    OD = wireholeID-2*wiretubeClear;
+    wall=1.2;
     difference() {
         union() {
-            translate(bearingTC+[0,0,start])
+            difference() {
+                wire_encoder_solid(OD,0,0);
+                // Hollow interior
+                difference() {
+                    wire_encoder_solid(OD,-wall,1);
+                    
+                    // Round front lip
+                    translate(encoderholeC+[OD/2,0,+4])
+                        rotate([90,0,0])
+                            cylinder(d=7,h=20,center=true);
+                }
+            }
+            
+            wire_magnet(OD);
+        }
+        
+        // Internal wire pass-through
+        translate(encoderholeC+[2,0,-2])
+            scale([1,1,1])
+                bevelcylinder(d=15,h=16,bevel=1);
+        
+        // Carve rounded wire entrance
+        translate(encoderholeC) {
+            hull() {
+                for (insert=[0,1]) translate(+[-1,0,0]+insert*[5,0,0])
+                        rotate([90,0,0])
+                            cylinder(d=10,h=30,center=true);
+            }
+            hull() {
+                for (insert=[0,1]) translate(+[5,0,0]+insert*[5,0,-5])
+                        rotate([90,0,0])
+                            cylinder(d=7,h=30,center=true);
+            }
+        }
+        
+        // Space for M3 connection bolt
+        translate(magboltC) {
+            scale([1,1,-1]) cylinder(d=6.0,h=10); // head
+            translate([0,0,-0.1]) cylinder(d=3.2,3); // shaft
+            cylinder(d=2.6,20); // tapped into plastic
+        }
+    }
+    
+}
+
+// Slices off top of magnetic encoder
+module magcut_slice() {
+    translate(magcutC) {
+        // bevel to self-align
+        for (tip=[-1,+1]) rotate([tip*15,0,0])
+        rotate([0,180-45,0])
+            translate([0,-100,0])
+                bevelcube([200,200,200],bevel=1);
+        
+        // keep whole magnet area
+        translate([0,0,-3-100])
+                cube([200,200,200],center=true);
+            
+    }
+}
+
+// Cut wire encoder, keeping lower tube portion
+//   (Separated to let USB cable ends pass through)
+module wire_encoder_bottom() 
+{
+    rotate([180,0,0])
+    translate(-wireTC)
+    difference() {
+        wire_encoder();
+        magcut_slice();
+    }
+}
+
+// Cut of wire encoder, keeping the top magnetic encoder
+module wire_encoder_top() 
+{
+    translate([3,0,0])
+    translate(-magnetC)
+    //translate([0,0,-1])
+    intersection() {
+        wire_encoder();
+        magcut_slice();
+    }
+}
+
+
+
+// 2D outline of frame_T main body
+module frame_T_2D() {
+    hull() offset(r=3)
+        projection(cut=true) BscrewOR_array();
+}
+
+
+frame_T_start= -bearingZ(mainbearing)+0.01; // Z coordinate where this object begins (amount of bearing to cover)
+
+// Overall outside shape of frame_T, less interior features
+module frame_T_solid(limit_frameOD=500)
+{   
+    difference() {
+        union() {
+            translate(bearingTC+[0,0,frame_T_start])
             {
-                // Tapered dust cover over the bearing outside surface
+                // Main body
+                linear_extrude(height=frame_TZ-frame_T_start)
+                    frame_T_2D();
+
+                    // Tapered dust cover over the bearing outside surface
                 hull() {
-                    cylinder(d=3+bearingOD(mainbearing),h=2-start);
-                    translate([0,0,2+BTspaceZ-start])
+                    cylinder(d=3+bearingOD(mainbearing),h=2-frame_T_start);
+                    translate([0,0,2+BTspaceZ-frame_T_start])
                         cylinder(d=-5+bearingID(mainbearing),h=5);
-                }
-                
-                linear_extrude(height=frame_TZ-start)
-                {
-                    hull() offset(r=3)
-                        projection(cut=true)
-                            BscrewOR_array();
-                            
-                }
+                }            
             }
             
             children();
         }
+        
+        // slot for frame steel
+        intersection() {
+            frame_steel();
+            cylinder(d=limit_frameOD,h=100,center=true);
+        }
+        
+        // Space for the actual bearing
+        translate(bearingBC) 
+            cylinder(d=bearingOD(mainbearing)+mainbearing_clearance,h=bearingZ(mainbearing)+mainbearing_clearance);
+        
+        translate(bearingTC+[0,0,-0.01+frame_T_start]) {
+            // Space above moving bearing surface
+            cylinder(r=bearingOD(mainbearing)/2-2,h=1-frame_T_start);
+            
+            // Space above inside bolt heads
+            cylinder(r=BscrewIR+screw_head_diameter(Bscrew)/2+1,h=BTspaceZ-frame_T_start);
+        }
+    }
+}
+
+// Lighten holes in frame_T
+module frame_T_lighten() {
+    round=3;
+    lightenZ=17; // Z start of cut
+    lightenWall=1.6; 
+    
+    translate([0,0,frame_TZ-lightenZ+0.1]) 
+    linear_extrude(height=lightenZ,convexity=4) 
+    offset(r=+round) offset(r=-round)
+    difference() {
+        offset(r=-lightenWall) 
+        difference() 
+        {
+            frame_T_2D();
+            square([200,framethick],center=true);
+            circle(d=gear_OD(gearplane_Rgear(gearplaneT)));
+            projection(cut=true) BscrewOR_array();
+        }
+        for (side=[-1,+1]) rotate([0,0,side*33])
+            square([200,lightenWall],center=true);
+    }
+}
+
+// Top ring gear and frame: held by Bscrews
+module frame_T(limit_frameOD=500)
+{
+    difference() {
+        frame_T_solid(limit_frameOD) children();
         
         // Inside ring gear teeth
         gstart=-3;
@@ -771,29 +1038,49 @@ module frame_T(limit_frameOD=500)
                 wire_funnel(wireholeID+2*wirewall);
         }
         //translate(carrier_bearingC) hull() bearing3D(carrier_bearing);
-
-        intersection() {
-            frame_steel();
-            cylinder(d=limit_frameOD,h=100,center=true);
-        }
-        
-        translate(bearingBC) 
-            cylinder(d=bearingOD(mainbearing)+mainbearing_clearance,h=bearingZ(mainbearing)+mainbearing_clearance);
-        
-        translate(bearingTC+[0,0,-0.01+start]) {
-            // Space above moving bearing surface
-            cylinder(r=bearingOD(mainbearing)/2-2,h=1-start);
-            
-            // Space above inside bolt heads
-            cylinder(r=BscrewIR+screw_head_diameter(Bscrew)/2+1,h=BTspaceZ-start);
-        }
         
         // Wiring thru hole
         scale(wireS) cylinder(d=wireholeID,h=100,center=true);
         translate(wireTC) scale(wireS)
             wire_funnel(wireholeID);
+        
+        // Lighten holes
+        frame_T_lighten();
     }
 }
+
+// Supports for printing frame_T
+module frame_T_supports() {
+    startZ=gearTC[2];
+    topZ=frame_TZ;
+    OR=(bearingOD(mainbearing)+2)/2; // outside radius
+    IR=(bearingID(mainbearing))*0.45; // inside radius
+    support=0.8; // two perimeters, out and back
+    Zgap=0.2; // detachable support distance
+    
+    difference() {
+        for (side=[0,180]) rotate([0,0,side]) {
+            // hold down the sidewalls
+            difference() {
+                for (angle=[-30:15:+30]) rotate([0,0,angle])
+                translate([-support/2,IR,startZ])
+                    cube([support,OR-IR,topZ-startZ]);
+                
+                cube([200,67,100],center=true); // don't get near middle
+            }
+            
+            // stop curl on inside bevels
+            /*for (angle=[-10,0,+10]) rotate([0,0,angle])
+                translate([IR,-support/2,startZ])
+                    cube([OR-IR-7,support,topZ-startZ]);
+            */
+        }
+        
+        translate([0,0,+Zgap])
+            frame_T_solid();
+    }
+}
+
 
 
 // Sundrive and bottom sun gear:
@@ -868,11 +1155,6 @@ echo("Wiring channel: ",wireholeOD," in sun gear: ",gear_ID(gearplane_Sgear(gear
 echo("Motor gear center: ",motor_gearC);
 echo("FrameT clear Z: ",carrier_bearingC[2]-bearingTC[2] + bearingZ(carrier_bearing));
 
-frameZ = 1.0*inch; // thickness of steel frame bar
-frameBevel = 0.7;
-frameBC = bearingBC + [0,0,-BscrewZ-0.5*frameZ]; // Center of bottom frame bar
-frameTC = bearingTC + [0,0,0.5*frameZ]; // Center of top frame bar
-
 
 /*
  Drive motor
@@ -885,10 +1167,15 @@ motorA = [0,0,360/6/2]; // angle of rotation (mostly to align the mount screws)
 // Clearance cut on top frame steel
 module frameT_clearance(extraZ=0) {
     // Top tube clearance cut
-    translate(bearingTC+[0,0,-0.01-extraZ]) {
-        bevelcylinder(d=2*frameT_clearR,h=frameT_clearZ+extraZ,bevel=frameT_bevel);
-        cylinder(r=frameT_clearR,h=frameT_clearZ/2+extraZ); // bottom, no bevel
+    translate(bearingTC+[0,0,-0.01-extraZ]+[1,1,0]*(-frameT_clearR)) {
+        size=[1,1,0]*2*frameT_clearR+[0,0,frameT_clearZ+extraZ];
+        bevelcube(size,bevel=frameT_bevel);
+        cube([size[0],size[1],size[2]/2]);// bottom, no bevel
     }
+    topsize=[1,1,0]*2*mainbearingR+[0,0,4];
+    translate(bearingTC-[topsize[0]/2,topsize[1]/2,0])
+        cube(topsize);
+    
 }
 // Clearance cut on bottom frame steel
 module frameB_clearance() {
@@ -1069,6 +1356,8 @@ module cutaway_gearbox()
             illustrate_gears();
             frame_B();
             frame_T();
+            
+            color([0.5,0.5,0.5]) wire_encoder();
         }
         for (cutangle=[0,45]) color([1,0,0]) rotate([0,0,cutangle])
         translate([0,0,-100]) cube([200,200,200]);
@@ -1092,18 +1381,19 @@ module cutaway_gearZ()
     }
 }
 
+
 // Illustrations:
-//cutaway_gearbox();
+cutaway_gearbox();
 //cutaway_gearZ();
 
-//illustrate_frame();
+//#illustrate_frame();
 //illustrate_covers();
 //illustrate_gears_2D();
 //animate_gears_2D();
 
 //#BscrewIR_array();
 
-//frame_T();
+//frame_T(); 
 //frame_B();
 //planet_carrier();
 //sundrive_gear_whole();
@@ -1115,8 +1405,13 @@ module cutaway_gearZ()
 
 //printable_planets();
 
-//rotate([180,0,0]) translate([0,0,-frame_TZ]) frame_T();
-reduce_cordless_stick();
+//rotate([180,0,0]) translate([0,0,-frame_TZ]) { frame_T(); frame_T_supports(); }
+
+//wire_encoder(); // one piece
+//wire_encoder_bottom(); // two part, bolt together
+//wire_encoder_top();
+
+//reduce_cordless_stick();
 
 
 // Spares:
@@ -1124,6 +1419,7 @@ reduce_cordless_stick();
 
 
 // Computer Aided Manufacturing (CAM) jigs:
+//planet_jig(); // holds planets for drilling bearing pockets
 //motorplate2D(); // DXF for plasma cutting
 //motorplate_jig(); // 3D printed jig
 //frame_B_jig(); // bottom steel cut/mark jig
