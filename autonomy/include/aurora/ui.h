@@ -427,7 +427,7 @@ Joysticks have different axis and button numbering:
     }
     if (attached_arm()) {
         for (int j=0;j<robot_power::njoints;j++) {
-            attached.arm.joint[j]=limit(attached.arm.joint[j],armLimit);
+            attached.arm.joint[j]=limit(attached.arm.joint[j],0.4*armLimit);
         }
     }
     
