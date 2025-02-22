@@ -1,10 +1,23 @@
 /*
  Talk to the AS5600 magnetic angle sensor, over I2C
- https://look.ams-osram.com/m/7059eac7531a86fd/original/AS5600-DS000365.pdf
+  https://look.ams-osram.com/m/7059eac7531a86fd/original/AS5600-DS000365.pdf
+
+
+ Serial command protocol:
+  t500  - set PID target to angle=500 (approx 1/10 degree increments, 0-4095)
+  a1500  - set arm motor center time to 1500 microseconds
 
 
  Hookup:
-  Arduino Uno pins A4 (SDA) & A5 (SCL), power (3.3VDC), ground.
+ AS5600 connected to:
+  Arduino Uno/Nano pins A4 (SDA) & A5 (SCL), power (3.3VDC), ground.
+ Motor control servo connected to:
+  Arduino pin 9 (servo signal) and ground.
+
+ Limitations:
+  Probably gets weird around the 0-4096 wraparound, so face the magnet the other way.
+
+ Dr. Orion Lawlor, lawlor@alaska.edu, 2025-02-20 (Public Domain)
 */
 #include <Wire.h>
 #include <Servo.h>
@@ -61,26 +74,10 @@ int last_error = 0; // for rate term
 float smooth_rate = 0; // smoothed version, less noisy
 int total_error = 0; // for integral term
 
-void loop() {
-  while (Serial.available()>0) {
-    char c= Serial.read();
-    if (c=='a') arm_angle=Serial.parseFloat();
-    if (c=='t') target=Serial.parseFloat();
-  }
-
-  //int dn = analogRead(outpin); // potentiometer input
-  //int us = map(dn, 0,1023, 900,2100);
-  //servolib.writeMicroseconds(us);
-
-  unsigned int ang=readHex("ANG ",0x0E,0);
-  //unsigned int agc=readHex("AGC ",0x0A,1);
-  unsigned int mag=readHex(" MAG ",0x1B,0);
-
-  Serial.print(ang);
-  Serial.print("\t");
-  Serial.print(mag);
-  Serial.print("\t");
-
+// Run PID algorithm to produce a motor command, in microseconds
+//   ang is the raw magnetic angle reading
+int getPIDcommand(int ang)
+{
   int error = target - ang; // in raw 4096th of rotation
   
   int cur_rate = error - last_error;
@@ -114,6 +111,8 @@ void loop() {
   // Limit microseconds to plausible values
   if (command<800) command=800;
   if (command>2200) command=2200;
+
+  // Debug print to serial port
   Serial.print((int)target);
   Serial.print("\t");
   Serial.print((int)error);
@@ -122,11 +121,40 @@ void loop() {
   Serial.print("\t");
   Serial.print((int)total_error);
   Serial.print("\t");
+
+  return command;
+}
+
+
+void loop() {
+  while (Serial.available()>0) {
+    char c= Serial.read();
+    if (c=='a') arm_angle=Serial.parseFloat();
+    if (c=='t') target=Serial.parseFloat();
+  }
+
+  //int dn = analogRead(outpin); // potentiometer input
+  //int us = map(dn, 0,1023, 900,2100);
+  //servolib.writeMicroseconds(us);
+
+  unsigned int ang=readHex("ANG ",0x0E,0);
+  //unsigned int agc=readHex("AGC ",0x0A,1);
+  unsigned int mag=readHex(" MAG ",0x1B,0);
+
+  Serial.print(ang);
+  Serial.print("\t");
+  Serial.print(mag);
+  Serial.print("\t");
+
+  float command = arm_angle;
+  if (mag>100) { // magnet sanity checks, send a real command
+    command = getPIDcommand(ang);
+  }
+
   Serial.print((int)command);
   Serial.print("\t");
   servolib.writeMicroseconds((int)command);
 
-  //unsigned int v=readHex(" AGC ",0x1A);
   Serial.println();
-  delay(10); //<- run control loop at 100 Hz
+  delay(10); //<- run control loop at up to 100 Hz
 }

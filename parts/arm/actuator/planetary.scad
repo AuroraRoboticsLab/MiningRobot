@@ -776,7 +776,7 @@ magcutC = magboltC + [0,0,8.5];
 encoderholeC = [0,0,encoderholeZ];
 
 // Solid outer block tube with this diameter
-module wire_encoder_solid(OD_raw,enlarge=0,enlargeZ=0) {
+module wiretube_solid(OD_raw,enlarge=0,enlargeZ=0) {
     OD = OD_raw + 2*enlarge;
     dZ = enlargeZ*0.01;
     h=0.1;
@@ -847,17 +847,17 @@ module wire_magnet(OD)
 
 // Tube that wraps around thru wires, and holds encoder magnet.
 //  Faces in -Z direction.  This version is one piece.
-module wire_encoder() 
+module wiretube() 
 {
     OD = wireholeID-2*wiretubeClear;
     wall=1.2;
     difference() {
         union() {
             difference() {
-                wire_encoder_solid(OD,0,0);
+                wiretube_solid(OD,0,0);
                 // Hollow interior
                 difference() {
-                    wire_encoder_solid(OD,-wall,1);
+                    wiretube_solid(OD,-wall,1);
                     
                     // Round front lip
                     translate(encoderholeC+[OD/2,0,+4])
@@ -916,27 +916,161 @@ module magcut_slice() {
 
 // Cut wire encoder, keeping lower tube portion
 //   (Separated to let USB cable ends pass through)
-module wire_encoder_bottom() 
+module wiretube_bottom() 
 {
     rotate([180,0,0])
     translate(-wireTC)
     difference() {
-        wire_encoder();
+        wiretube();
         magcut_slice();
     }
 }
 
 // Cut of wire encoder, keeping the top magnetic encoder
-module wire_encoder_top() 
+module wiretube_top() 
 {
     translate([3,0,0])
     translate(-magnetC)
     //translate([0,0,-1])
     intersection() {
-        wire_encoder();
+        wiretube();
         magcut_slice();
     }
 }
+
+// Center of encoderboard circuit board
+encoderboardC = magnetC + [0,0,-4];
+encoderboardR = 3; // rounding on corners
+// Size of encoder circuit board itself (AS56000 breakout)
+encoderboardSZ = [24, 23.5, 2];
+
+// Size of mount around connecting board between encoder and nano
+connectboardC = encoderboardC + [0,0,-12.7];
+connectboardSZ = [40, 24, 2];
+
+
+// Hole locations for encoder circuit board
+encoderboardH = 16.0; // FIXME: actual size here
+encoderboardD = 2.6; // tap M3 screw here
+
+// Make children at encoder board hole locations
+module encodermount_hole_centers() {
+    translate(encoderboardC)
+        for (dx=[-1,+1]) for (dy=[-1,+1])
+            translate([dx*encoderboardH/2,dy*encoderboardH/2,0])
+                children();
+}
+
+// Stuff around encoder mount area
+module encodermount_solid(enlarge=0)
+{
+    frameB_clearance(enlarge=enlarge);
+    for (Z=[frameBC]) translate(Z) 
+        bevelcube(bevel=frameBevel,frameSteel+2*enlarge*[1,1,1],center=true); // steel frame
+    
+    // Clearance around end of wire tube
+    translate(magnetC+[0,0,-enlarge]) 
+        bevelcylinder(d=wireholeID+2+2*enlarge,h=15+2*enlarge,bevel=2);
+    
+    // Space between encoder board and connectboard
+    e2 = (enlarge>0?2*enlarge:-0.9)*[1,1,1];
+    bevel = enlarge>0?0.8:0.01;
+    hull() {
+        translate(encoderboardC)
+            bevelcube(encoderboardSZ+e2,center=true,bevel=bevel);
+        translate(connectboardC)
+            bevelcube(connectboardSZ+e2,center=true,bevel=bevel);
+    }
+    if (enlarge==0) { // sharp square holes for boards
+        translate(encoderboardC)
+            cube(encoderboardSZ,center=true);
+        translate(connectboardC) translate([0,0,-5]) // open top
+            cube(connectboardSZ+[10,0,10],center=true);
+    }
+    
+    
+    /*
+    // Space around encoder board itself
+    translate(encoderboardC)
+        if (enlarge>0) { // exterior
+            bevelcube(encoderboardSZ+2*enlarge*[1,1,1],center=true,bevel=0.8);
+        }
+        else { // interior
+            extraZ=10;
+            translate([0,0,-extraZ/2])
+            cube(encoderboardSZ+2*enlarge*[1,1,1]+[0,0,extraZ],center=true);
+        }
+    */
+    
+    // Shaft under board
+    extraZ=50;
+    startZ=extraZ/2+(enlarge==0?-10:0);
+    
+    difference() {
+        translate(encoderboardC+[0,0,startZ])
+            bevelcube(0.8*encoderboardSZ+2*enlarge*[1,1,1]+[0,0,extraZ],center=true,bevel=3);
+        
+        if (enlarge==0) { // wrap around bolts
+            encodermount_hole_centers() cylinder(d=5,h=6);
+        }
+    }
+}
+
+
+
+// Mounts to frame, and holds circuit boards that read encoder magnet
+module encodermount()
+{
+    wall=1.6;
+    
+    difference() {
+        intersection() {
+            sz=90; // overall size, only limits on X
+            centerline=-5; // Y coord of centerline of mount
+            startZ = frameBC[2]+frameSteel[2]/2-(frame_B_thick-BscrewZ)-0.3;
+            // Cube limits to right general area
+            translate([0,sz/2+centerline,startZ-sz/2])
+                cube([sz,sz,sz],center=true);
+            
+            union() {
+                // Walls
+                encodermount_solid(wall);
+                
+                // Board supports / tiedowns
+                for (side=[-1,+1]) scale([side,-1,1])
+                    translate([-18,-13.5,-68]) {
+                        cube([6,2.4,30]);
+                        cube([2.4,5,30]);
+                    }
+                
+                // Stick-down tabs
+                for (side=[-1,+1]) scale([side,1,1])
+                    for (p=[[42,15], [10,32]]) translate([p[0],p[1],startZ-1])
+                        cylinder(d=8,h=1);
+            }
+        }
+        // Tapped holes for M3
+        encodermount_hole_centers() cylinder(d=2.6,h=5);
+        
+        // Interior
+        encodermount_solid(0);
+        
+        // Frame bolt holes
+        cover_mount_holes(0.6);
+        
+        // Space for manual drive (and hole for debris to escape)
+        H = reducesun_gear;
+        translate(reduce_gearC) 
+            cylinder(d=gear_OD(H)+1,h=50,center=true);
+        
+        // Slot for wires to escape
+        width=16;
+        translate(magnetC+[0,-width/2,+3]) bevelcube([100,width,100],bevel=3);
+    }
+}
+
+
+
 
 
 
@@ -1178,10 +1312,10 @@ module frameT_clearance(extraZ=0) {
     
 }
 // Clearance cut on bottom frame steel
-module frameB_clearance() {
+module frameB_clearance(enlarge=0) {
     // Bottom tube clearance cut 
-    translate(bearingBC+[0,0,+0.01]) scale([1,1,-1]) 
-        bevelcylinder(d=2*frameB_clearR,h=bearingBC[2]-sundrive_gearC[2]+3,bevel=3);
+    translate(bearingBC+[0,0,+0.01+enlarge]) scale([1,1,-1]) 
+        bevelcylinder(d=2*frameB_clearR+2*enlarge,h=bearingBC[2]-sundrive_gearC[2]+3+2*enlarge,bevel=3);
 }
 
 // Outline of 1x1 inch steel tubing, minus clearance cuts
@@ -1240,12 +1374,12 @@ module whole_motor3D()
 }
 
 // Tapped M3 holes in steel parts, to mount cover plates / endplugs (in the future)
-module cover_mount_holes() 
+module cover_mount_holes(enlarge=0) 
 {
     translate(frameBC) {
         for (x=[-1,+1]) translate([x*40,0])
             rotate([90,0,0])
-                cylinder(d=2.5,h=50,center=true);
+                cylinder(d=2.5+2*enlarge,h=50,center=true);
     }
 }
 
@@ -1357,12 +1491,12 @@ module cutaway_gearbox()
             frame_B();
             frame_T();
             
-            color([0.5,0.5,0.5]) wire_encoder();
+            color([0.5,0.5,0.5]) wiretube();
         }
         for (cutangle=[0,45]) color([1,0,0]) rotate([0,0,cutangle])
         translate([0,0,-100]) cube([200,200,200]);
     }
-    reduce_gear_whole();
+    //reduce_gear_whole();
 }
 
 // Section along Z
@@ -1382,8 +1516,9 @@ module cutaway_gearZ()
 }
 
 
+
 // Illustrations:
-cutaway_gearbox();
+//cutaway_gearbox();
 //cutaway_gearZ();
 
 //#illustrate_frame();
@@ -1407,9 +1542,12 @@ cutaway_gearbox();
 
 //rotate([180,0,0]) translate([0,0,-frame_TZ]) { frame_T(); frame_T_supports(); }
 
-//wire_encoder(); // one piece
-//wire_encoder_bottom(); // two part, bolt together
-//wire_encoder_top();
+//wiretube(); // one piece
+//wiretube_bottom(); // two part, bolt together
+//wiretube_top();
+
+#encodermount(); // mounts the encoder board on non-motor side
+
 
 //reduce_cordless_stick();
 
@@ -1424,5 +1562,7 @@ cutaway_gearbox();
 //motorplate_jig(); // 3D printed jig
 //frame_B_jig(); // bottom steel cut/mark jig
 //frame_T_jig(); // top steel cut/mark jig
+
+
 
 
