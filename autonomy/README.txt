@@ -53,7 +53,7 @@ nanoslot is how we talk to the Arduino nano microcontrollers
 
 
 Build instructions:
-	sudo apt-get install freeglut3-dev g++ make
+	sudo apt-get install freeglut3-dev g++ make libopencv-dev
 	cd backend
 	make
 	./backend --sim

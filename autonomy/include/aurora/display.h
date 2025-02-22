@@ -381,8 +381,7 @@ void robot_display_telemetry(const robot_base &robot)
 		robotPrintln("Batteries: mine %.0f%% (%.2fV), drive %.0f%% (%.2fV)",
 	    robot.sensor.charge_M, robot.sensor.cell_M,
 	    robot.sensor.charge_D, robot.sensor.cell_D);
-	}
-	
+	}	
 
     robotPrintln("Load cells: tool %.1f %.1f  scoop %.1f %.1f (%s)",
         robot.sensor.load_TL,robot.sensor.load_TR,
@@ -465,14 +464,14 @@ void robot_display_finish(const robot_base &robot)
 // Draw current robot power values as weird triangles
 	float *powers=(float *)&robot.power.left; // HACK: want array of powers
 	glBegin(GL_TRIANGLES);
-	for (unsigned int i=0;i<9;i++) {
+	for (unsigned int i=0;i<12;i++) {
 		float pow=powers[i];
-		float cenx=30*(0.5+i); // +field_x_GUI;
+		float cenx=60*(0.5+i); // +field_x_GUI;
 		float ceny=0.90*field_y_size;
 		glColor3ub(128+100*pow,128,255);
 		glVertex2f(cenx-20,ceny);
 		glVertex2f(cenx+20,ceny);
-		glVertex2f(cenx,ceny+80*(pow+0.01));
+		glVertex2f(cenx,ceny+100*(pow+0.01));
 	}
 	glEnd();
 

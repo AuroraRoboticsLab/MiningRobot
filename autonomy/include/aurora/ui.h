@@ -32,9 +32,9 @@ public:
 	
 	enum {
 	    joyModeSTOP=0, // don't drive
-	    joyModeLow=1, // bottom of robot
-	    joyModeMed=2, // middle of robot
-	    joyModeHigh=3, // top of robot (tool)
+	    joyModeLow=1, // bottom of robot: drive and scoop
+	    joyModeHigh=3, // top of robot arm / grinder
+	    joyModeArm=4, // move robot arm
 	} joyMode=joyModeLow; // joystick mode selected
 	
 	robot_power power; // Last output power commands
@@ -223,7 +223,7 @@ void robot_ui::update(int keys[],const robot_base &robot) {
 
 // Power limits:
 	float scoopLimit=1.0; // limit on fork & dump
-	float armLimit=1.0; // limit on boom, stick, tilt, spin
+	float armLimit=1.0; // limit on boom, stick, tilt
 
 // Prepare a command:
 	left=right=0.0;
@@ -232,13 +232,7 @@ void robot_ui::update(int keys[],const robot_base &robot) {
 	fork=dump=0.0;
 	
 	boom=stick=tilt=0.0; 
-	spin=0.0;
-	
-	tool=0.0;
 
-    // These state variables are used to display whether you're on a joystick.
-	static bool joyDrive=false; 
-	bool joyDone=false; 
 /*
 Joysticks have different axis and button numbering:
 
@@ -271,13 +265,13 @@ Joysticks have different axis and button numbering:
     // Defaults are for Logitech
     int axis_lx=1, axis_ly=2;
     int axis_rx=4, axis_ry=5;
-    int button_stop=3, button_low=1, button_pop=4, button_high=2;
+    int button_stop=3, button_low=1, button_arm=4, button_high=2;
     int button_topleft=5, button_topright=6; // shoulder buttons
     
     const char *joystick_name=oglJoystickName();
     if (joystick_name[0]=='S') { // Saitek
         axis_ry=3; // for some reason this uses axis 3
-        button_stop=1; button_low=3; button_pop=2; button_high=4;
+        button_stop=1; button_low=3; button_arm=2; button_high=4;
         button_topleft=7; button_topright=8;
     }
 
@@ -288,13 +282,14 @@ Joysticks have different axis and button numbering:
     /* Read the right analog stick */
     float ry=filter_axis(-js_axis(axis_ry,""));
     float rx=filter_axis(js_axis(axis_rx,""));
-
-	if(lx!=0.0 || ly!=0.0 || ry!=0 || rx!=0)
-	{
-		joyDrive=true; // using joystick
-	}
-	else { // joystick stopped
-	    joyDone=true;
+    
+	// Left shoulder acts as positive confirmation joystick switch
+	//   so joystick axes are ignored if it's not held down.
+	if (js_button(button_topleft,"live shoulder")) {
+	    description += "joystick ";
+	} else {
+	    // killswitch released, disable joystick axes
+	    lx = ly = rx = ry = 0.0;
 	}
 	
 	// Treat the WASD keys like left analog stick (for keyboard-only driving)
@@ -321,50 +316,70 @@ Joysticks have different axis and button numbering:
         robotState_requested=joystickState; 
 	}
 	
-	if ((js_button_once(button_pop,"pop") && js_button(button_topright,"pop confirm")) || keys_once['P'])
+	if (js_button(button_arm,"arm") || keys['j'])  
+    { 
+        joyMode=joyModeArm; 
+        attach_mode=attach_arm;
+        robotState_requested=joystickState; 
+    }
+	
+	// Pop previous state (for hierarchical autonomy stub)
+	if (keys_once['P'])
 	{ 
 	    if (joyMode==joyModeSTOP) joyMode=joyModeHigh; 
 	    robotState_requested = state_POP; 
 	}
-	
-	if (js_button(button_topleft,"stop shoulder") || 
-	    js_button(button_stop,"stop button") || 
-	    keys[' ']) 
+
+	if (js_button(button_stop,"stop button") || 
+	    keys[' '])  // spacebar killswitch
     { 
         joyMode=joyModeSTOP;
         robotState_requested=state_STOP;
 	}
-    
+	
+	// Apply joystick (or keyboard) inputs:
     switch (joyMode) {
     case joyModeSTOP: 
         stop(); 
-		break;
+	    break;
     case joyModeLow: 
-	    description += " Low: drive fork-dump ";
-	    forward=ly;
-	    turn=lx;
-	    
-	    fork=-ry;
-	    dump=-rx;
-	    break;
+        description += " Low: drive fork-dump ";
+        forward=ly;
+        turn=lx;
+        
+        fork=-ry;
+        dump=-rx;
+        break;
     case joyModeHigh:
-	    description += " High: stick-boom tilt-mine ";
-	    
-	    stick=ly;
-	    boom=lx;
-	    
-	    tilt=ry;
-	    tool=rx;
-	    break;
+        description += " High: stick-boom tilt-mine ";
+        
+        stick=ly;
+        boom=lx;
+        
+        tilt=ry;
+        if (attached_grinder()) attached.grinder.tool=rx;
+        break;
+    case joyModeArm:
+        if (attached_arm()) {
+    	    description += " Arm: swing-nod slant-spin ";
+            attached.arm.joint[0]=lx;
+            attached.arm.joint[1]=-lx+rx;
+            attached.arm.joint[2]=ly;
+            attached.arm.joint[3]=ry;
+        }
+        break;
     default:
     	break;
     }
-
-	if(joyDrive)
-	{   
-		description += " joystick";
+    
+	if (joyMode == joyModeArm) {
+        float grab=0.0;
+        if (js_button(button_topright,"do grab") || keys['g']) 
+            grab=0.2; // positive grab
+        if (keys['r']) 
+            grab=-0.2; // release
+        attached.arm.joint[4]=grab;
 	}
-	joyDrive=!joyDone;
 
 // Adjust power limits
     
@@ -406,12 +421,24 @@ Joysticks have different axis and button numbering:
 	boom=limit(boom,armLimit);
 	stick=limit(stick,armLimit);
 	tilt=limit(tilt,armLimit);
-	spin=limit(spin,armLimit);
 	
-	tool=limit(tool,tuneable.tool);
-
+	if (attached_grinder()) {
+	    attached.grinder.tool=limit(attached.grinder.tool,tuneable.tool);
+    }
+    if (attached_arm()) {
+        for (int j=0;j<robot_power::njoints;j++) {
+            attached.arm.joint[j]=limit(attached.arm.joint[j],armLimit);
+        }
+    }
+    
 	// Blend in power to smooth our motion commands, for less jerky operation
-    power.blend_from(*this,0.2);
+	if (power.attach_mode != attach_mode) {
+	    // Just changed attachment mode--don't blend, just copy
+	    power = *this;
+	}
+	else { // same mode, smooth blend
+        power.blend_from(*this,0.2);
+    }
     
     std::cout<<"UI desc end: "<<description<<std::endl;
 	robotPrintLines(description);

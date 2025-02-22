@@ -88,7 +88,7 @@ const char* joint_move_hazards(const robot_joint_state &joint,const robot_power 
     
     if (in_scoop) {
         // We're in the scoop; sometimes this is okay.
-        if (fabs(power.tool)>small)
+        if (power.attached_grinder() && fabs(power.attached.grinder.tool)>small)
             return "can't spin inside scoop";
     }
     
@@ -305,7 +305,7 @@ const robot_link_geometry &link_geometry(robot_link_index L)
             link_stick, linktype_revolute,
             link_boom, vec3(0,-0.312,0.750),
             axisX, 0.0f, 3,
-            -32, +70
+            -32, +60
         },
         {
             "tilt",

@@ -110,7 +110,7 @@ public:
 	    move_joint(aurora::link_boom, joint.angle.boom, -0.6f*power.boom*linear_speed); // boom is a little slower
 	    move_joint(aurora::link_stick, joint.angle.stick, power.stick*linear_speed);
 	    move_joint(aurora::link_tilt, joint.angle.tilt, power.tilt*linear_speed);
-	    move_joint(aurora::link_spin, joint.angle.spin, power.spin*linear_speed);
+	    //move_joint(aurora::link_spin, joint.angle.spin, power.spin*linear_speed);
 	
 	// Move both wheels
 		vec2 side[2];  // Location of wheels:  0: Left; 1:Right

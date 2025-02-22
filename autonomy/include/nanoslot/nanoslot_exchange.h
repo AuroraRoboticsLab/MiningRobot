@@ -25,6 +25,7 @@ typedef uint8_t nanoslot_byte_t; ///< generic data byte
 typedef uint8_t nanoslot_heartbeat_t; ///< heartbeat (watchdog-type counter)
 typedef int8_t nanoslot_motorpercent_t; ///< -100 for full reverse, 0 for stop, +100 for full forward
 typedef int16_t nanoslot_voltage_t; ///< Arduino A/D voltage reading
+typedef int16_t nanoslot_actuator_angle_t; // 1/4096 angle reading
 typedef uint8_t nanoslot_counter_t; ///< Counter, like an encoder
 typedef int8_t nanoslot_padding_t[3]; ///< padding to avoid false sharing between slots
 
@@ -45,6 +46,23 @@ struct nanoslot_autonomy {
     nanoslot_byte_t mode;
 };
 
+/** slot ID 0x7x: slender arm motor controllers on each actuator */
+struct nanoslot_command_0x70 {
+    nanoslot_autonomy autonomy; 
+    
+    enum {n_motors=1};
+    nanoslot_motorpercent_t torque[n_motors]; // brushless motor power, torque control
+    nanoslot_actuator_angle_t target[n_motors]; // angle control (autonomous modes)
+};
+struct nanoslot_sensor_0x70 {
+    nanoslot_heartbeat_t heartbeat; // increments when connected
+
+    nanoslot_byte_t mag[1]; // magnet strength 
+    nanoslot_actuator_angle_t angle[1]; // read-back angle
+};
+struct nanoslot_state_0x70 : public nanoslot_state {
+    float angle[1]; // read-back angle, in degrees
+};
 
 /* 
  General per-slot format:
@@ -53,7 +71,7 @@ struct nanoslot_autonomy {
  nanoslot_sensor_<ID> is the sensor data reported back by the Arduino.
 */
 
-/** slot ID 0xA0: arm motor controllers (in arm electronics box) */
+/** slot ID 0xA0: wide permanent arm motor controllers (in arm electronics box) */
 struct nanoslot_command_0xA0 {
     nanoslot_autonomy autonomy; 
     
@@ -235,14 +253,26 @@ struct nanoslot_exchange {
     nanoslot_padding_t pad_0; ///<- padding prevents false sharing slowdown
     
     // Each slot stores its data here:
+    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_70;
+    nanoslot_padding_t pad_70;
+    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_71;
+    nanoslot_padding_t pad_71;
+    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_72;
+    nanoslot_padding_t pad_72;
+    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_73;
+    nanoslot_padding_t pad_73;
+    
+    
     nanoslot_exchange_slot<nanoslot_command_0xA0, nanoslot_sensor_0xA0, nanoslot_state_0xA0> slot_A0;
     nanoslot_padding_t pad_A0;
     
     nanoslot_exchange_slot<nanoslot_command_0xA1, nanoslot_sensor_0xA1, nanoslot_state_0xA1> slot_A1;
     nanoslot_padding_t pad_A1;
     
+    
     nanoslot_exchange_slot<nanoslot_command_0xC0, nanoslot_sensor_0xC0, nanoslot_state_0xC0> slot_C0;
     nanoslot_padding_t pad_C0;
+    
     
     nanoslot_exchange_slot<nanoslot_command_0xD0, nanoslot_sensor_0xD0, nanoslot_state_0xD0> slot_D0;
     nanoslot_padding_t pad_D0;

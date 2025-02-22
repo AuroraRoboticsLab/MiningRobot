@@ -189,18 +189,32 @@ void arduino_command_write(robot_base &robot)
     nanoslot_exchange &nano=exchange_nanoslot.write_begin();
     nano.autonomy.mode=(int)robot.state;
     
+    // arm power
+    if (robot.power.attached_arm()) {
+        nano.slot_70.command.torque[0] = motor_scale(robot.power.attached.arm.joint[0],"arm0");
+        nano.slot_71.command.torque[0] = motor_scale(robot.power.attached.arm.joint[1],"arm1");
+        nano.slot_72.command.torque[0] = motor_scale(robot.power.attached.arm.joint[2],"arm2");
+        nano.slot_73.command.torque[0] = motor_scale(robot.power.attached.arm.joint[3],"arm3");
+    } 
+    
     // mining head power
-    nano.slot_C0.command.mine = motor_scale(robot.power.tool,"mine");
+    float minePower = 0.0;
+    if (robot.power.attached_grinder()) minePower=robot.power.attached.grinder.tool;
+    nano.slot_C0.command.mine = motor_scale(minePower,"mine");
     
     // load cell read side
     nano.slot_A1.command.read_L = robot.power.read_L;
     nano.slot_F1.command.read_L = robot.power.read_L;
     
     auto &armslot = nano.slot_A0;
-    armslot.command.motor[0]=-motor_scale(robot.power.spin,"spin");
-    armslot.command.motor[1]=0; // spare
+    armslot.command.motor[0]=0; // was: -motor_scale(robot.power.spin,"spin");
+    armslot.command.motor[1]=motor_scale(
+        robot.power.attached_arm()?robot.power.attached.arm.joint[4]:0,
+        "clamp"
+    );
     armslot.command.motor[2]=motor_scale(robot.power.tilt,"tilt");
     armslot.command.motor[3]=motor_scale(robot.power.stick,"stick");
+    
     
     auto &frontslot = nano.slot_F0;
     frontslot.command.motor[0]=-motor_scale(robot.power.dump,"dump");
@@ -473,6 +487,9 @@ class robot_manager_t
 {
 public:
   robot_base robot; // overall integrated current state
+  
+  // Attached tool
+  robot_power::attach_mode_t attach_mode = robot_power::attach_none; 
 
   int substep=0; // within an autonomous step, this is a sub-step (starts at 0)
 
@@ -614,7 +631,7 @@ private:
   // Run autonomous mining, if possible
   bool tryMineMode(void) {
     //if (drive_posture()) {    
-    robot.power.tool=0.5; // TUNE THIS mining head rate
+    robot.power.attached.grinder.tool=0.5; // TUNE THIS mining head rate
     robot.power.dump=0; // TUNE THIS lowering rate
     mining_head_lowered=true;
     
@@ -981,7 +998,7 @@ void robot_manager_t::autonomous_state()
   else if (robot.state==state_mine)
   {
     // Tool is running
-    robot.power.tool=std::min(robot.tuneable.tool, mine_power_limit);
+    robot.power.attached.grinder.tool=std::min(robot.tuneable.tool, mine_power_limit);
     
     float aggro = 0.5; // robot.tuneable.aggro; // aggression during mining
     bool advance = true; // cutting head should progress along the cut
@@ -1046,7 +1063,7 @@ void robot_manager_t::autonomous_state()
         
         if (mine_progress>=1.0f) {
              mine_progress=0.0f;
-            robot.power.tool=0.0;
+            robot.power.attached.grinder.tool=0.0;
             enter_state(state_mine_finish);
         }
     }
@@ -1237,6 +1254,7 @@ void robot_manager_t::update(void) {
   
 #if 1 /* enable for backend UI: dangerous, but useful for autonomy testing w/o frontend */
   // Keyboard control
+  //ui.power.attach_mode = attach_mode;
   ui.update(oglKeyMap,robot);
 
   // Click to set state:
@@ -1343,14 +1361,18 @@ void robot_manager_t::update(void) {
     robotPrintln("Slot A0 STOP command");
   }
   
-  
+  if (nano.slot_C0.state.connected) {
+    attach_mode = robot_power::attach_grinder;
+    robotPrintln("Mining head: %5.3f  %5.3f V   %.2f mine\n",
+        nano.slot_C0.state.load, nano.slot_C0.state.cell, robot.power.attached.grinder.tool); 
+  }
+  if (nano.slot_70.state.connected) {
+    attach_mode = robot_power::attach_arm;
+    robotPrintln("Arm: angles %5.1f    torque %.2f (%s)\n",
+        nano.slot_70.state.angle[0], robot.power.attached.arm.joint[0],
+        robot.power.attached_arm()?"attached":"??"); 
+  }
 
-/*
-    if (nano.slot_C0.state.connected) {
-        robotPrintln("Mining head: %5.3f  %5.3f V   %.2f mine\n",
-            nano.slot_C0.state.load, nano.slot_C0.state.cell, robot.power.tool); 
-    }
- */
    
   // Accumulate drivetrain encoder counts into actual distances
   float fudge=1.0; // fudge factor to make distance equal reality

@@ -118,8 +118,33 @@ public:
 	float stick; // arm second link: + extends the stick
 	float tilt; // arm third link: + extends tool forward
 	
-	float spin; // tool coupler rotation: + is right handed
-	float tool; // excavation tool: + is normal forward cut
+	
+	// This union combines settings for all attached tools.
+	//    E.g., set attached.grinder.tool if the grinder is attached.
+	union {
+	    // Grinding head (spins to excavate)
+	    struct grinder_power_t {
+	        float tool; // excavation tool: + is normal forward cut
+	    } grinder;
+	    
+	    // Robot arm with truss picker
+	    struct arm_power_t {
+	        float joint[5]; // set of arm joint power settings
+	    } arm; 
+	    
+	    // other attached tools get listed here!
+	} attached;
+	enum {njoints=5}; // number of arm joints
+	
+	typedef enum {
+	    attach_none=0,
+	    attach_grinder=1,
+	    attach_arm=2
+	} attach_mode_t;
+	
+	unsigned char attach_mode; // enum attach_mode_t (with specified storage type)
+	inline bool attached_grinder(void) const { return attach_mode==attach_grinder; }
+	inline bool attached_arm(void) const { return attach_mode==attach_arm; }
 	
 	unsigned char torque; // one bit per power: 0=torque control; 1=speed or position control
 	unsigned char read_L:1; // set this bit to read the left load cells (0 for right cells).
@@ -128,7 +153,11 @@ public:
 	
 	/// Set all power values to 0
 	void stop(void) {
-		left=right=fork=dump=boom=stick=tilt=spin=tool=drive_stop; // all-stop
+		left=right=fork=dump=boom=stick=tilt=drive_stop; // all-stop
+		for (int j=0;j<njoints;j++) {
+		    attached.arm.joint[j]=drive_stop;
+		}
+		attach_mode=attach_none;
 		torque=0;
 		read_L=0;
 	}
@@ -145,19 +174,44 @@ public:
 	    fork=fork*(1.0-frac)+src.fork*frac;
 	    dump=dump*(1.0-frac)+src.dump*frac;
 	    
-	    
 	    boom=boom*(1.0-frac)+src.boom*frac;
 	    stick=stick*(1.0-frac)+src.stick*frac;
 	    tilt=tilt*(1.0-frac)+src.tilt*frac;
 	    
-	    spin=spin*(1.0-frac)+src.spin*frac;
-	    tool=tool*(1.0-frac)+src.tool*frac;
+	    if (attach_mode == src.attach_mode)
+	    switch(attach_mode) {
+	    case attach_grinder: 
+	        attached.grinder.tool = attached.grinder.tool*(1.0-frac)+src.attached.grinder.tool*frac;
+	        break;
+	    case attach_arm: 
+	        for (int j=0;j<njoints;j++) {
+	            attached.arm.joint[j]=attached.arm.joint[j]*(1.0-frac)+src.attached.arm.joint[j]*frac;
+	        }
+	        break;
+	    default:
+            break;
+	    }
 	}
 
 #ifdef _STDIO_H
     void print(const char *what) {
-        printf("%s: LR %.1f %.1f  FD %.1f %.1f  BST %.1f %.1f %.1f  PO %.1f %.1f\n",
-            what, left,right, fork,dump, boom,stick,tilt, spin,tool);
+        printf("%s: LR %.1f %.1f  FD %.1f %.1f  BST %.1f %.1f %.1f ",
+            what, left,right, fork,dump, boom,stick,tilt);
+        
+	    switch(attach_mode) {
+	    case attach_grinder: 
+	        printf(" G %.2f\n",attached.grinder.tool);
+	        break;
+	    case attach_arm: 
+	        printf(" A ");
+	        for (int j=0;j<njoints;j++) {
+	            printf(" %.1f ",attached.arm.joint[j]);
+	        }
+	        break;
+	    default:
+            break;
+	    }
+	    printf("\n");
     }
 #endif
 };
