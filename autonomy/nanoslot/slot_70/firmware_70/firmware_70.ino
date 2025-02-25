@@ -4,12 +4,16 @@
 #define NANOSLOT_MY_ID 0x70
 #include "nanoslot/firmware.h"
 #include "nanoslot/firmware_AS5600.h"
-#include <Servo.h>
 
 const int motorPin=9; // motor controller PWM pin
-Servo motor;
 
-const int pwmStop=1015; // microsecond RC PWM width for stop
+#define USE_SERVO_H 1 /* generate motor PWM pulses with Servo.h (0 = use delays) */
+#if USE_SERVO_H
+#include <Servo.h>
+Servo motor;
+#endif
+
+const int pwmStop=1010; // microsecond RC PWM width for stop
 const int pwmFull=150; // microsecond RC PWM difference for full power
 
 
@@ -38,7 +42,14 @@ void firmware_send_motors()
     static PIDcontroller ctrl;
     cmd = ctrl.get_centered(ctrl.get_command(my_sensor.angle[0],my_command.target[0]),pwmStop);
   }
+
+#if USE_SERVO_H
   motor.writeMicroseconds(cmd);
+#else // busywait: allows faster PWM rate, but less reliable
+  digitalWrite(motorPin,1); // RC PWM pulse
+  delayMicroseconds(cmd); 
+  digitalWrite(motorPin,0); // end pulse
+#endif
 
   digitalWrite(13,(abs(cmd-pwmStop)>20)?1:0);
 }
@@ -52,9 +63,13 @@ bool firmware_handle_custom_packet(A_packet_serial &pkt,A_packet &p)
 void setup() {
   pinMode(13,OUTPUT); // blink pin
 
+#if USE_SERVO_H
   motor.attach(motorPin); // motor controller command pin
   motor.write(pwmStop);
-  
+#else
+  pinMode(motorPin,OUTPUT); digitalWrite(motorPin,0);
+#endif
+
   AS5600_begin();
   
   nanoslot_firmware_start();
