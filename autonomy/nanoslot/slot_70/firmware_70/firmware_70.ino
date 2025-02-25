@@ -9,8 +9,8 @@
 const int motorPin=9; // motor controller PWM pin
 Servo motor;
 
-const int pwmStop=1000; // microsecond RC PWM width for stop
-const int pwmFull=200; // microsecond RC PWM difference for full power
+const int pwmStop=1015; // microsecond RC PWM width for stop
+const int pwmFull=150; // microsecond RC PWM difference for full power
 
 
 void firmware_read_encoders(void)
@@ -40,7 +40,7 @@ void firmware_send_motors()
   }
   motor.writeMicroseconds(cmd);
 
-  digitalWrite(13,(abs(cmd-pwmStop)>100)?1:0);
+  digitalWrite(13,(abs(cmd-pwmStop)>20)?1:0);
 }
 
 
@@ -61,5 +61,5 @@ void setup() {
 }
 
 void loop() {
-  nanoslot_firmware_loop();
+  nanoslot_firmware_loop(10); //<- 10ms cycle target -> 100Hz motor updates
 }
