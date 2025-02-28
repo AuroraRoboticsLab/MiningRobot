@@ -13,8 +13,9 @@ const int motorPin=9; // motor controller PWM pin
 Servo motor;
 #endif
 
-const int pwmStop=1010; // microsecond RC PWM width for stop
-const int pwmFull=150; // microsecond RC PWM difference for full power
+const int pwmStop=1490; // <- for BLHeli center.  
+//  Flycolor:  1010; // microsecond RC PWM width for stop
+const int pwmFull=350; // microsecond RC PWM difference for full power
 
 
 void firmware_read_encoders(void)
