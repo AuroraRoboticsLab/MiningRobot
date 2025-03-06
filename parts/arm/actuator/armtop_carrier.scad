@@ -1,7 +1,7 @@
 /*
-
+ Attaches to robot arm, special carrier gear setup.
 */
-include <planetary_bearing.scad>;
+include <planetary.scad>;
 
 
 hole_circle_OD=141.5; // bolt circle center diameter
@@ -9,7 +9,7 @@ holeID = 0.2*inch; //  #10-24 bolts
 holeCap = 0.4*inch; // cap on top of bolts
 holeN = 8; // taking only the tapped holes in the robot front mount
 
-trimZ = 3; // Z thickness to trim off bottom
+trimZ = 2.0; // Z thickness to trim off bottom
 holeZ = 6+trimZ; // material around 1/2" bolts
 
 module mountbolt_centers() {
@@ -50,6 +50,9 @@ module frame_T_mounted() {
         //    cylinder(d=32,h=16);
         
         translate([0,0,trimZ-200]) cube([400,400,400],center=true);
+        
+        // cutaway
+        //cube([100,100,100]);
     }
 }
 

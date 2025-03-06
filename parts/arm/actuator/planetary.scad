@@ -120,7 +120,7 @@ wireslope = 3.0; // taper outward smoothly
 
 wiretubeClear = 0.15; // space around wire tube entrance
 encoderholeZ = frameBC[2]-framethick/2-1; // Z coordinate of the encoder hole outlet
-magnetZ = frameBC[2]-framethick/2-12; // top of the magnet
+magnetZ = frameBC[2]-framethick/2-25; // top of the magnet
 
 
 // Bottom (B) input gearplane: sun driven by motor
@@ -750,13 +750,27 @@ wireTC = bearingTC + [0,0,frameT_clearZ];
 wireS = [1.2,1,-1]; // <- scaled wider for extra room, and key for rotation
 wirewall=1.2;
 
+// Wire-shaped cylinder, with indexing marks on sides
+module wire_cylinder(d1,d2,h) {
+    inset=1.5; // flat spots trimmed on sides to reduce rotation
+    intersection() {
+        cylinder(d1=d1, d2=d2, h=h);
+        // Trim flat spots on ends
+        cube([100,d1-2*inset,100],center=true);
+    }
+}
+
 // Sloped entrance to wiring channel of this diameter.
 module wire_funnel(OD)
 {
+    slope=2; // slanted area
+
     // Slope out end of wiring channel
-    slope=2;
     for (ds=[0:0.5:slope])
-        cylinder(d2=OD, d1=OD+2*slope-2*ds, h=slope+ds);
+    {
+        endOD=OD+2*slope-2*ds;
+        wire_cylinder(d1=endOD, d2=OD, h=slope+ds);
+    }
 }
 
 // Center top of magnet for the angle encoder
@@ -770,7 +784,7 @@ magnetW = 1.6; // wall around magnet
 magboltC = magnetC + [-wireholeID/2+2.6,0,3.5];
 
 // Cut groove for detachable magnet goes through here
-magcutC = magboltC + [0,0,8.5];
+magcutC = magboltC + [0,0,10.0];
 
 // Spot where encoder goes through steel frame
 encoderholeC = [0,0,encoderholeZ];
@@ -789,7 +803,7 @@ module wiretube_solid(OD_raw,enlarge=0,enlargeZ=0) {
     transitionC=[0,0,+5];
     hull() {
         translate(wireTC) scale(wireS) 
-            translate([0,0,3-dZ]) cylinder(d=OD+0.5, h=h);
+            translate([0,0,3-dZ]) wire_cylinder(d1=OD+0.5,d2=OD, h=h);
         translate(transitionC)
             cylinder(d=OD, h=h);
     }
@@ -817,7 +831,7 @@ module wire_magnet(OD)
             difference() {
                 translate(encoderholeC+[0,0,0])
                     cylinder(d=OD, h=h);
-                translate(encoderholeC+[14,0,0]) cube([40,40,40],center=true);
+                translate(encoderholeC+[15,0,0]) cube([40,40,40],center=true);
             }
             
             if (baseconnect==0) {
@@ -860,7 +874,7 @@ module wiretube()
                     wiretube_solid(OD,-wall,1);
                     
                     // Round front lip
-                    translate(encoderholeC+[OD/2,0,+4])
+                    translate(encoderholeC+[OD/2,0,+3])
                         rotate([90,0,0])
                             cylinder(d=7,h=20,center=true);
                 }
@@ -877,14 +891,10 @@ module wiretube()
         // Carve rounded wire entrance
         translate(encoderholeC) {
             hull() {
-                for (insert=[0,1]) translate(+[-1,0,0]+insert*[5,0,0])
+                for (dz=[0,1]) translate([0,0,-8*dz])
+                for (insert=[0,1]) translate(+[0,0,-3]+insert*[4,0,0])
                         rotate([90,0,0])
-                            cylinder(d=10,h=30,center=true);
-            }
-            hull() {
-                for (insert=[0,1]) translate(+[5,0,0]+insert*[5,0,-5])
-                        rotate([90,0,0])
-                            cylinder(d=7,h=30,center=true);
+                            cylinder(d=12,h=30,center=true);
             }
         }
         
@@ -892,7 +902,7 @@ module wiretube()
         translate(magboltC) {
             scale([1,1,-1]) cylinder(d=6.0,h=10); // head
             translate([0,0,-0.1]) cylinder(d=3.2,3); // shaft
-            cylinder(d=2.6,20); // tapped into plastic
+            cylinder(d=2.6,25); // tapped into plastic
         }
     }
     
@@ -948,6 +958,11 @@ encoderboardSZ = [24, 23.5, 2];
 connectboardC = encoderboardC + [0,0,-12.7];
 connectboardSZ = [40, 24, 2];
 
+// Mount hole in connecting board:
+//   Magnet origin in kicad coords is (7,3)
+//   M3 mounting hole origin in kicad coords is (24.4,10)
+connectboardM = [7-24.4, 3-10, connectboardC[2]+connectboardSZ[2]/2];
+
 
 // Hole locations for encoder circuit board
 encoderboardH = 16.0; // FIXME: actual size here
@@ -970,7 +985,7 @@ module encodermount_solid(enlarge=0)
     
     // Clearance around end of wire tube
     translate(magnetC+[0,0,-enlarge]) 
-        bevelcylinder(d=wireholeID+2+2*enlarge,h=15+2*enlarge,bevel=2);
+        bevelcylinder(d=wireholeID+2+2*enlarge,h=50+2*enlarge,bevel=2);
     
     // Space between encoder board and connectboard
     e2 = (enlarge>0?2*enlarge:-0.9)*[1,1,1];
@@ -1019,6 +1034,7 @@ module encodermount_solid(enlarge=0)
 
 
 // Mounts to frame, and holds circuit boards that read encoder magnet
+
 module encodermount()
 {
     wall=1.6;
@@ -1026,7 +1042,7 @@ module encodermount()
     difference() {
         intersection() {
             sz=90; // overall size, only limits on X
-            centerline=-5; // Y coord of centerline of mount
+            centerline=-5.5; // Y coord of centerline of mount
             startZ = frameBC[2]+frameSteel[2]/2-(frame_B_thick-BscrewZ)-0.3;
             // Cube limits to right general area
             translate([0,sz/2+centerline,startZ-sz/2])
@@ -1038,9 +1054,9 @@ module encodermount()
                 
                 // Board supports / tiedowns
                 for (side=[-1,+1]) scale([side,-1,1])
-                    translate([-18,-13.5,-68]) {
-                        cube([6,2.4,30]);
-                        cube([2.4,5,30]);
+                    translate([-18,-13.5,magnetZ-10]) {
+                        cube([6,2.4,50]);
+                        cube([2.4,5,50]);
                     }
                 
                 // Stick-down tabs
@@ -1049,6 +1065,7 @@ module encodermount()
                         cylinder(d=8,h=1);
             }
         }
+        
         // Tapped holes for M3
         encodermount_hole_centers() cylinder(d=2.6,h=5);
         
@@ -1066,6 +1083,13 @@ module encodermount()
         // Slot for wires to escape
         width=16;
         translate(magnetC+[0,-width/2,+3]) bevelcube([100,width,100],bevel=3);
+    }
+    
+    // Mounting bolt
+    translate(connectboardM) 
+    difference() {
+        cylinder(d=6,h=8);
+        cylinder(d=2.7,h=10);
     }
 }
 
@@ -1546,7 +1570,7 @@ module cutaway_gearZ()
 //wiretube_bottom(); // two part, bolt together
 //wiretube_top();
 
-#encodermount(); // mounts the encoder board on non-motor side
+encodermount(); // mounts the encoder board on non-motor side
 
 
 //reduce_cordless_stick();
