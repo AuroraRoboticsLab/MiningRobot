@@ -200,16 +200,19 @@ module tubes3D() {
     }
 }
 
+topperOD=truss_diagOD+0.5;
 
 // Truss including top surface mesh
 module tubes3Dtopper() {
-    clipX_list=[0]; // +1/6*truss_top,-1/6*truss_top]; // list of X coordinate centers for topper top clips
+    // list of X coordinate centers for topper top clips
+    //clipX_list=[0]; // 
+    clipX_list = [+0.31*truss_top,-0.31*truss_top]; 
     
     // Center of clip, relative to tool clamp coords
     clip_center = [0,truss_dY+truss_majorOD/2-vheight,topperZ+truss_majorOD/2+clearance];
         
     round=truss_round; // rounding on 2D extrusions
-    OD = truss_diagOD; // diagonal width
+    OD = topperOD; // diagonal width
 
     // Start with the flat part of the truss
     tubes3D();
@@ -224,7 +227,7 @@ module tubes3Dtopper() {
                 z=trussE/2;
                 diagZ=topperZ*0.8;
                 diagY=(2*truss_dY)*0.8;
-                stroke2D([z,truss_dY-diagY],[diagZ,diagY],dia=OD); // diag
+                stroke2D([z,truss_dY-diagY],[diagZ,diagY],dia=trussZ); // diag
                 stroke2D([z,truss_dY],[0,-2*truss_dY],dia=trussE); // bottom
                 stroke2D([z,truss_dY],[topperZ-z,0],dia=OD); // up
             }
@@ -265,10 +268,14 @@ module tubes3Dtopper() {
                         difference() {
                             // Interior hollow of topper
                             square([wid-2*truss_majorOD,ht-2*OD],center=true);
-                            // diagonals (for appearance and printability?)
+                            // diagonals (for appearance and printability)
                             for (Xside=[-1,+1]) scale([Xside,1,1]) {
-                                stroke2D([-truss_top/2,+ht/2],[truss_top/4,-ht],dia=OD);
-                                stroke2D([-truss_top/4,-ht/2],[truss_top/4,+ht],dia=OD);
+                                corner = [-truss_top/2,+ht/2];
+                                stroke2D(corner,[truss_top/4,-ht],dia=OD);
+                                middle = [-truss_top/4,-ht/2];
+                                stroke2D(middle,[truss_top/4,+ht],dia=OD);
+                                stroke2D([corner[0],middle[1]],[-clipX_list[0]-corner[0],+0.9*ht],dia=OD);
+
                             }
                             /*
                             for (side=[-1,+1]) rotate([0,0,side*45])
@@ -279,7 +286,8 @@ module tubes3Dtopper() {
                             // clip backing
                             translate([0,ht/2-OD/2]) {
                                 for (x=clipX_list) translate([x,0,0])
-                                    square([8,8],center=true);
+                                    circle(d=8);
+                                    //square([8,8],center=true);
                             }
                         }
                     }
@@ -298,7 +306,7 @@ module tubes3Dtopper() {
         {
             // support material under lock latch
             space=0.2;
-            linear_extrude(height=trussE+4,convexity=4,center=true) 
+            linear_extrude(height=trussE+3,convexity=4,center=true) 
                 translate([-space,vheight-gY*0.4]) square([gX-space,0.8],center=true); 
             
             // Lock latch
@@ -306,12 +314,13 @@ module tubes3Dtopper() {
                 lock2D();
                 
                 //connector2D();
+                x = -1;
                 y = vheight-gY;
                 polygon([
                     [-trussZ*1.5,y],
                     [-trussZ/2,y],
-                    [-clearance,y-2*clearance],
-                    [-clearance,y-dockX]
+                    [x-clearance,y-2*clearance],
+                    [x-clearance,y-dockX]
                 ]);
             }
         }
