@@ -27,7 +27,7 @@ typedef int8_t nanoslot_motorpercent_t; ///< -100 for full reverse, 0 for stop, 
 typedef int16_t nanoslot_voltage_t; ///< Arduino A/D voltage reading
 typedef int16_t nanoslot_actuator_angle_t; // 1/4096 angle reading
 typedef uint8_t nanoslot_counter_t; ///< Counter, like an encoder
-typedef int8_t nanoslot_padding_t[3]; ///< padding to avoid false sharing between slots
+typedef int8_t nanoslot_padding_t[7]; ///< padding to avoid false sharing between slots
 
 /** Generic firmware state */
 struct nanoslot_state {
@@ -235,8 +235,27 @@ struct nanoslot_exchange_slot
     sensor_t sensor; ///< Sensor data received back from Arduino
     state_t state; ///< Persistent state data
     nanoslot_debug_t debug; ///< Debug data
+    
+    nanoslot_padding_t pad; ///<- padding prevents false sharing slowdown (separate programs on separate cores may be updating each slot's data)
 };
 
+/* These typedefs relate the slot structs above to the slot ID */
+typedef nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> nanoslot_slot_0x70;
+typedef nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> nanoslot_slot_0x71;
+typedef nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> nanoslot_slot_0x72;
+typedef nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> nanoslot_slot_0x73;
+
+typedef nanoslot_exchange_slot<nanoslot_command_0xA0, nanoslot_sensor_0xA0, nanoslot_state_0xA0> nanoslot_slot_0xA0;
+typedef nanoslot_exchange_slot<nanoslot_command_0xA1, nanoslot_sensor_0xA1, nanoslot_state_0xA1> nanoslot_slot_0xA1;
+
+typedef nanoslot_exchange_slot<nanoslot_command_0xC0, nanoslot_sensor_0xC0, nanoslot_state_0xC0> nanoslot_slot_0xC0;
+
+typedef nanoslot_exchange_slot<nanoslot_command_0xD0, nanoslot_sensor_0xD0, nanoslot_state_0xD0> nanoslot_slot_0xD0;
+
+typedef nanoslot_exchange_slot<nanoslot_command_0xF0, nanoslot_sensor_0xF0, nanoslot_state_0xF0> nanoslot_slot_0xF0;
+typedef nanoslot_exchange_slot<nanoslot_command_0xF1, nanoslot_sensor_0xF1, nanoslot_state_0xF1> nanoslot_slot_0xF1;
+
+typedef nanoslot_exchange_slot<nanoslot_command_0xEE, nanoslot_sensor_0xEE, nanoslot_state_0xEE> nanoslot_slot_0xEE;
 
 /** One struct with all nano slot data, 
    for example to live in the data exchange, 
@@ -253,48 +272,34 @@ struct nanoslot_exchange {
     nanoslot_padding_t pad_0; ///<- padding prevents false sharing slowdown
     
     // Each slot stores its data here:
-    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_70;
-    nanoslot_padding_t pad_70;
-    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_71;
-    nanoslot_padding_t pad_71;
-    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_72;
-    nanoslot_padding_t pad_72;
-    nanoslot_exchange_slot<nanoslot_command_0x70, nanoslot_sensor_0x70, nanoslot_state_0x70> slot_73;
-    nanoslot_padding_t pad_73;
+    nanoslot_slot_0x70 slot_70;
+    nanoslot_slot_0x71 slot_71;
+    nanoslot_slot_0x72 slot_72;
+    nanoslot_slot_0x73 slot_73;
     
+    nanoslot_slot_0xA0 slot_A0;
+    nanoslot_slot_0xA1 slot_A1;
     
-    nanoslot_exchange_slot<nanoslot_command_0xA0, nanoslot_sensor_0xA0, nanoslot_state_0xA0> slot_A0;
-    nanoslot_padding_t pad_A0;
+    nanoslot_slot_0xC0 slot_C0;
     
-    nanoslot_exchange_slot<nanoslot_command_0xA1, nanoslot_sensor_0xA1, nanoslot_state_0xA1> slot_A1;
-    nanoslot_padding_t pad_A1;
+    nanoslot_slot_0xD0 slot_D0;
     
+    nanoslot_slot_0xF0 slot_F0;
+    nanoslot_slot_0xF1 slot_F1;
     
-    nanoslot_exchange_slot<nanoslot_command_0xC0, nanoslot_sensor_0xC0, nanoslot_state_0xC0> slot_C0;
-    nanoslot_padding_t pad_C0;
-    
-    
-    nanoslot_exchange_slot<nanoslot_command_0xD0, nanoslot_sensor_0xD0, nanoslot_state_0xD0> slot_D0;
-    nanoslot_padding_t pad_D0;
-    
-    nanoslot_exchange_slot<nanoslot_command_0xF0, nanoslot_sensor_0xF0, nanoslot_state_0xF0> slot_F0;
-    nanoslot_padding_t pad_F0;
-    
-    nanoslot_exchange_slot<nanoslot_command_0xF1, nanoslot_sensor_0xF1, nanoslot_state_0xF1> slot_F1;
-    nanoslot_padding_t pad_F1;
-    
-    nanoslot_exchange_slot<nanoslot_command_0xEE, nanoslot_sensor_0xEE, nanoslot_state_0xEE> slot_EE;
-    nanoslot_padding_t pad_EE;
+    nanoslot_slot_0xEE slot_EE;
 };
 
 
 #ifdef NANOSLOT_MY_ID
+/* Used by slot programs, with a defined hex value */
 
 #define NANOSLOT_TOKENPASTE(a,b) a##b
 #define NANOSLOT_TOKENPASTE2(a,b) NANOSLOT_TOKENPASTE(a,b)
-#define NANOSLOT_COMMAND_MY  NANOSLOT_TOKENPASTE2(nanoslot_command_,NANOSLOT_MY_ID)
-#define NANOSLOT_SENSOR_MY  NANOSLOT_TOKENPASTE2(nanoslot_sensor_,NANOSLOT_MY_ID)
-#define NANOSLOT_STATE_MY  NANOSLOT_TOKENPASTE2(nanoslot_state_,NANOSLOT_MY_ID)
+#define NANOSLOT_SLOT_FROM_ID() NANOSLOT_TOKENPASTE2(nanoslot_slot_,NANOSLOT_MY_ID)
+#define NANOSLOT_COMMAND_MY decltype(((NANOSLOT_SLOT_FROM_ID() *)0)->command)
+#define NANOSLOT_SENSOR_MY  decltype(((NANOSLOT_SLOT_FROM_ID() *)0)->sensor)
+#define NANOSLOT_STATE_MY   decltype(((NANOSLOT_SLOT_FROM_ID() *)0)->state)
 
 #endif
 

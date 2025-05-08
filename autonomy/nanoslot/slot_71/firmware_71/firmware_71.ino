@@ -1,4 +1,4 @@
-#define NANOSLOT_MY_ID 0x70
+#define NANOSLOT_MY_ID 0x71
 const int pwmStop=1490; // <- for BLHeli center PWM, in us
 const int pwmFull=350; // microsecond RC PWM difference for full power
 

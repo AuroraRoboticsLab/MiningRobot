@@ -3,8 +3,8 @@
  
  Dr. Orion Lawlor, lawlor@alaska.edu, 2025-02-21 (Public Domain)
 */
-#define NANOSLOT_MY_ID 0x70 /* my numeric slot ID */
-#define NANOSLOT_MY_EX nano.slot_70  /* my exchange struct */
+#define NANOSLOT_MY_ID 0x73 /* my numeric slot ID */
+#define NANOSLOT_MY_EX nano.slot_73  /* my exchange struct */
 #include "aurora/lunatic.h"
 #include "nanoslot/nanoboot_handoff.h"
 
