@@ -358,12 +358,13 @@ Joysticks have different axis and button numbering:
         
         tilt=ry;
         if (attached_grinder()) attached.grinder.tool=rx;
+        else if (attached_arm()) attached.arm.joint[0]=rx;
         break;
     case joyModeArm:
         if (attached_arm()) {
     	    description += " Arm: swing-nod slant-spin ";
             attached.arm.joint[0]=lx;
-            attached.arm.joint[1]=-lx+rx;
+            attached.arm.joint[1]=rx;
             attached.arm.joint[2]=ly;
             attached.arm.joint[3]=ry;
         }
