@@ -9,7 +9,7 @@ int main() {
         if (exchange_nanoslot.updated()) {
             nano=exchange_nanoslot.read();
             
-            printf("Arm_angles: %.1f %.1f %.1f %1f\n", 
+            printf("Arm_angles: %.1f %.1f %.1f %.1f\n", 
                 nano.slot_70.state.angle[0],
                 nano.slot_71.state.angle[0],
                 nano.slot_72.state.angle[0],
