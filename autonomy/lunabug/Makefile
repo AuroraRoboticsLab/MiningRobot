@@ -2,12 +2,15 @@ include ../Makefile.inc
 OPTS=-O4
 CFLAGS=-I../include  -Wall  -std=c++17  $(OPTS) $(CVCFLAGS)
 LIBS=$(CVLINK)
-PROGS=lunaview lunatic_print_drive lunatic_print_state lunatic_print_encoders lunatic_print_stepper lunatic_print_2Dpos lunatic_print_3Dpos lunatic_print_target lunatic_set_target lunatic_set_stepper exchange_read exchange_write
+PROGS=lunaview lunatic_print_arm lunatic_print_drive lunatic_print_state lunatic_print_encoders lunatic_print_stepper lunatic_print_2Dpos lunatic_print_3Dpos lunatic_print_target lunatic_set_target lunatic_set_stepper exchange_read exchange_write
 
 all: $(PROGS)
 
 lunaview: lunaview.cpp ../include/*/*
 	g++ $(OPTS) $(CFLAGS) $< -o $@ $(LIBS)
+
+lunatic_print_arm: lunatic_print_arm.cpp
+	g++ $(CFLAGS) $< -o $@
 
 lunatic_print_state: lunatic_print_state.cpp
 	g++ $(CFLAGS) $< -o $@
