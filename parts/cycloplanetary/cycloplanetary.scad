@@ -30,6 +30,8 @@ v7: Switched to slimmer 6706 bearings, which allow much larger gear module (and 
 
 Mass of two bearings is 16g, and mass of two bearings and larger eccentric gears is 32g, with radius 2.625mm. Counterweight at 12mm radius thus needs 32g * 2.625mm / 12mm = 7 grams of weight, about three sticks of copper. 
 
+v8: Upgraded mount bolts to M5
+
 
 References:
 (Hsieh, 2014) The effect on dynamics of using a new transmission design for eccentric speed reducers
@@ -81,13 +83,33 @@ axleZE = 0.4; // extra Z on axle (clearance between moving parts, avoid rubbing)
 axleZ=bearingZ(axle_bearing)+axleZE; // Z height, plus a little clearance to fit
 
 
-// main bolts cling onto the main bearing
-mainboltN = 8; // number of main bolts
-mainboltOD = 3.0; // shaft diameter + clearance, M3 bolt
-mainboltTap = 2.7; // tap diameter
-mainboltShaftZ = 3; // length of clear shaft portion
-mainheadOD=5.8;
-mainheadZ=3;
+// main bolts cling onto the main bearing: I for inside, O for outside
+mainboltNI = 6; // number of main bolts (inside)
+mainboltODI = 5.0; // shaft diameter + clearance, M5 bolt
+mainboltTapI = 4.5; // tap diameter
+mainboltShaftZI = 3; // length of clear shaft portion
+mainheadODI=9.0;
+mainheadZI=5.0;
+
+mainboltNO = 6; // number of main bolts (outside)
+mainboltODO = 5.0; // shaft diameter + clearance, M5 bolt
+mainboltTapO = 4.5; // tap diameter
+mainboltShaftZO = 3; // length of clear shaft portion
+mainheadODO=9.0;
+mainheadZO=5.0;
+
+// Counterweight held on with M3 bolts
+cwboltOD = 3.0;
+cwboltTap = 2.7;
+cwheadOD = 5.8;
+
+module cwboltAngles() {
+    delta=60; 
+    for (angle=[-1,0,+1]) rotate([0,0,delta*angle])
+        translate([+axle_retainboltR,0,0])
+            children();
+}
+
 
 flatBZ=botZ - floorZ; // flat bottom start
 flatTZ=topZ + gapZ + gearZ + floorZ; // flat top end
@@ -100,15 +122,15 @@ module motor_facemount() {
 }
 
 
-mainboltRI = bearingIR(main_bearing) - mainboltOD/2; // inside bolt circle
-mainboltRO = bearingOR(main_bearing) + mainboltOD/2; // outside bolt circle
+mainboltRI = bearingIR(main_bearing) - mainboltODI/2; // inside bolt circle
+mainboltRO = bearingOR(main_bearing) + mainboltODO/2; // outside bolt circle
 mainboltRA = 7.5;
 mainboltZI = topZ;
 mainboltZO = botZ;
 mainboltZA = flatBZ;
 
 
-module mainbolt_centers(r, z, n=mainboltN, down, skip180=0) {
+module mainbolt_centers(r, z, n, down, skip180=0) {
     for (angle=[0:360/n:360-1]) rotate([0,0,angle])
         if (skip180==0 || angle!=180)
         translate([r,0,z]) scale([1,1,down?-1:+1])
@@ -116,13 +138,13 @@ module mainbolt_centers(r, z, n=mainboltN, down, skip180=0) {
 }
 
 // Inside main bearing bolt centers, facing down
-module mainbolt_centersI(n=mainboltN) {
+module mainbolt_centersI(n=mainboltNI) {
     mainbolt_centers(r=mainboltRI, z=mainboltZI, n=n, down=1) children();
 }
 
 // Outside main bearing bolt centers, facing up
-module mainbolt_centersO() {
-    mainbolt_centers(r=mainboltRO, z=mainboltZO, down=0) children();
+module mainbolt_centersO(n=mainboltNO) {
+    mainbolt_centers(r=mainboltRO, z=mainboltZO, n=n, down=0) children();
 }
 
 // Axle main bearing bolt centers, facing up
@@ -130,10 +152,15 @@ module mainbolt_centersA() {
     mainbolt_centers(r=mainboltRA, z=mainboltZA, down=0, skip180=1) children();
 }
 
-module mainbolt(shaft=mainboltShaftZ) {
-    translate([0,0,-0.01]) cylinder(d=mainboltOD,h=shaft); // thru
-    cylinder(d=mainboltTap,h=shaft+25); // tap
-    scale([1,1,-1]) cylinder(d=mainheadOD,h=mainheadZ); // head
+module mainboltI(shaft=50) { // smooth, for tap: mainboltShaftZI) {
+    translate([0,0,-0.01]) cylinder(d=mainboltODI,h=shaft); // thru
+    cylinder(d=mainboltTapI,h=shaft+50); // tap
+    scale([1,1,-1]) cylinder(d=mainheadODI,h=mainheadZI); // head
+}
+module mainboltO(shaft=mainboltShaftZO) {
+    translate([0,0,-0.01]) cylinder(d=mainboltODO,h=shaft); // thru
+    cylinder(d=mainboltTapO,h=shaft+50); // tap
+    scale([1,1,-1]) cylinder(d=mainheadODO,h=mainheadZO); // head
 }
 
 
@@ -159,6 +186,9 @@ extendGZ=1; // extend gear teeth this far in Z (lets bevels taper off)
 // Print the orbit radius values for the bottom and top.  
 //   The orbit radii need to match.
 module echo_orbits() {
+    gearplane_print(gB, "Bottom (input) gears");
+    gearplane_print(gT, "Top (output) gears");
+    
     rB = gearplane_ratio_Rfixed(gB);
     rT = gearplane_ratio_Rfixed(gT);
     echo("OrbitB = ",gearplane_Oradius(gB),"  ratioB ",rB);
@@ -198,7 +228,7 @@ module demo2D()
             gearplane_planets(gT) circle(d=bearingOD(axle_bearing)); 
         }
     
-    #mainbolt_centersI() circle(d=mainheadOD);
+    #mainbolt_centersI() circle(d=mainheadODI);
     #translate([0,0,botZ]) bearing3D(main_bearing);
     //#cube([75,25.4,1],center=true); // 1x1 steel frame
 }
@@ -219,20 +249,22 @@ module bevel_extrude(height,bevel,convexity=6)
 }
 
 /* Top frame portion, covers outside of main bearing */
-module frameT() {
+module frameT(versionText="") {
     difference() {
-        hull() {
-            z=flatTZ-botZ;
-            // Reach out to main bolts (or not quite as long?)
-            translate([0,0,botZ]) mainbolt_centersO() cylinder(d=mainheadOD,h=z);
-            
-            // Cover the main bearing
-            translate([0,0,botZ]) cylinder(d=bearingOD(main_bearing)+3,h=bearingZ(main_bearing)+1);
-            // Cover the top bearing
-            translate([0,0,flatTZ-floorZ]) cylinder(d=bearingOD(axle_bearing)+3,h=floorZ);
-            // Cover the top gear area
-            translate([0,0,flatTZ-floorZ]) cylinder(d=gear_ID(gRT)+3,h=floorZ);
-            
+        union() {
+            hull() {
+                z=flatTZ-botZ;
+                // Reach out to main bolts (or not quite as long?)
+                translate([0,0,botZ]) mainbolt_centersO() cylinder(d=mainheadODO,h=z);
+                
+                // Cover the main bearing
+                translate([0,0,botZ]) cylinder(d=bearingOD(main_bearing)+3,h=bearingZ(main_bearing)+1);
+                // Cover the top bearing
+                translate([0,0,flatTZ-floorZ]) cylinder(d=bearingOD(axle_bearing)+3,h=floorZ);
+                // Cover the top gear area
+                translate([0,0,flatTZ-floorZ]) cylinder(d=gear_ID(gRT)+3,h=floorZ);
+                
+            }
             children(); // any other parts mount on here
         }
         
@@ -242,7 +274,7 @@ module frameT() {
         // Clearance for inner bolt heads to spin
         translate([0,0,botZ-0.01]) bevelcylinder(d=bearingOD(main_bearing)-2,h=gTZ-botZ,bevel=2);
         
-        mainbolt_centersO() mainbolt();
+        mainbolt_centersO() mainboltO();
         
         translate([0,0,botZ]) bearing3D(main_bearing);
         translate([0,0,axleZs[3]]) bearing3D(axle_bearing,extraZ=axleZE,hole=0);
@@ -252,10 +284,12 @@ module frameT() {
         
         translate([0,0,axleZs[3]]) cylinder(d=thruOD,h=30);
         
+        /*
         // NEMA-style drive bolt mounting points, for M3 screws
         mountR=30;
         for (angle=[0:360/8:360-1]) rotate([0,0,angle])
             translate([mountR,0,flatTZ-10]) cylinder(d=mainboltTap,h=20);
+        */
                     
         // Lighten gaps
         difference() {
@@ -268,13 +302,15 @@ module frameT() {
                 difference() {
                     // outside walls
                     offset(r=-rib) 
-                        hull() mainbolt_centersO() circle(d=mainheadOD);
-                    // inside walls
+                        hull() mainbolt_centersO() circle(d=mainheadODO);
+
+                    // material around bolt heads
+                    mainbolt_centersO() circle(d=mainheadODO);
                     //hull() 
-                    mainbolt_centers(r=mountR,z=0) circle(d=boltOD);
+                    //mainbolt_centers(r=mountR,z=0) circle(d=boltOD);
 
                     // central ribs
-                    for (angle=[0:360/8:360-1]) rotate([0,0,angle])
+                    for (angle=[0:360/mainboltNO:360-1]) rotate([0,0,angle])
                         square([2*mainboltRO,rib],center=true);
                     
                     // Don't encroach on ring gear
@@ -283,7 +319,7 @@ module frameT() {
         }
         
         // Version text
-        translate([0,mainboltRI-7,flatTZ]) linear_extrude(height=1,center=true) version2D();
+        translate([0,mainboltRI-7,flatTZ]) linear_extrude(height=1,center=true) version2D(versionText);
 
         
     }
@@ -310,7 +346,7 @@ module frameB() {
         
         //translate([0,0,gBZ-0.2]) cylinder(d=gear_ID(gRB),h=gearZ+2);
         
-        mainbolt_centersI() mainbolt();
+        mainbolt_centersI() mainboltI();
         
         translate([0,0,botZ]) bearing3D(main_bearing);
         translate([0,0,axleZs[0]]) bearing3D(axle_bearing,extraZ=axleZE);
@@ -330,8 +366,8 @@ module frameB() {
 }
 
 /* Print text version number centered at origin */
-module version2D() {
-    text("v7-104x",size=3,halign="center",valign="center");
+module version2D(versionText="") {
+    text(str(versionText,"v8-M5"),size=3,halign="center",valign="center");
 }
 
 /* Eccentric gears mate to both ring gears, and transfer power */
@@ -458,7 +494,7 @@ module axledrive() {
         
         if (drive_bolts==1) {
             // Drive bolt holes
-            mainbolt_centersA() mainbolt(shaft=drive_clearance);
+            mainbolt_centersA() mainboltI(shaft=drive_clearance);
             
             // Thru hole inside
             translate([0,0,flatBZ-0.1]) cylinder(d=ID,h=100);
@@ -468,7 +504,8 @@ module axledrive() {
                 hexdrive2D(enlarge=drive_clearance);
             
             // Steel reinforcing screw or shaft can be added here
-            translate([axle_retainboltR,0,flatBZ-0.1]) cylinder(d=mainboltTap,h=100);
+            cwboltAngles()
+                translate([0,0,flatBZ-0.1]) cylinder(d=cwboltTap,h=100);
         }
         
         // optional motor face mount decreases bottom thickness
@@ -493,7 +530,7 @@ module counterweight() {
         union() {
             linear_extrude(height=thick+mate) hexdrive2D(); // male side, plugs into axle
             hull() {
-                translate([+axle_retainboltR,0,0]) cylinder(d=mainheadOD,h=thick);
+                cwboltAngles() cylinder(d=cwheadOD,h=thick);
                 linear_extrude(height=thick) offset(r=+wall) hexdrive2D(); 
                 translate(counterC) bevelcube([2*weightDX+weightOD+2*wall,weightY,thick],center=true,bevel=2);
             }
@@ -506,9 +543,10 @@ module counterweight() {
                     cylinder(d=weightOD,h=weightY+10);
         
         // Bolt
-        translate([+axle_retainboltR,0,thick/2]) scale([1,1,-1]) {
-            cylinder(d=mainboltOD+0.2,h=100,center=true);
-            cylinder(d=mainheadOD+0.5,h=100);
+        cwboltAngles()
+        translate([0,0,thick/2]) scale([1,1,-1]) {
+            cylinder(d=cwboltOD+0.2,h=100,center=true);
+            cylinder(d=cwheadOD+0.5,h=100);
         }
         
         // Thru hole in center
@@ -640,14 +678,14 @@ echo("Bolt circle outside radius: ",mainboltRO);
 echo("Drive hex diameter across flats: ",hexdrive_flats);
 
 
-
-if (0) {
+if (0) { /* don't print anything (include) */ }
+else if (0) {
     demo2D();
 }
-else if (0) {
+else if (1) {
     demo3D();
 }
-else if (1) { // printable pieces
+else if (0) { // printable pieces
     printable_eccentric_gears();
 
     printable_frameB();
@@ -655,12 +693,18 @@ else if (1) { // printable pieces
 
     //printable_axledrive();
 } 
-else if (1) { // separate batch for axle, so bearings can be 3D printed into it
+else if (0) { // separate batch for axle, so bearings can be 3D printed into it
     //printable_axlehex();
     printable_axledrive();
 }
-else if (1) {
+else if (0) {
     counterweight();
+}
+else if (1) { // CAM cross sections
+    projection(cut=true) translate([0,0,-gTZ-0.1*gearZ]) frameT();
+    //projection(cut=true) translate([0,0,-gBZ-0.5*gearZ]) frameB();
+    //projection(cut=true) translate([0,0,-gTZ-0.5*gearZ]) eccentric_gears();
+    //projection(cut=true) translate([0,0,-gBZ-0.5*gearZ]) eccentric_gears();
 }
 else if (1) { // balance check
     difference() {
