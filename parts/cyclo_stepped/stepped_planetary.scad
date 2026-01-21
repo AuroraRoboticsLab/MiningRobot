@@ -34,17 +34,19 @@ v8: Upgraded mount bolts to M5
 
 -----
 New tooth style:
+v3
   - With trimmed sprocket-style teeth, the eccentric gears and bearings have mass 32 grams, oscillating at 3.01mm radius
         torque 96 g-mm
-  - Counterweight at the distance of the axle retain bolts would be at 11.5mm radius
-        Should mass 8.3g at that distance.
+  - Counterweights need to add up to this same torque
+
+v4: Added stepped lip around axle bearings, to reduce friction around the axle (a likely cause of melting failures).
 
 
 References:
 (Hsieh, 2014) The effect on dynamics of using a new transmission design for eccentric speed reducers
 https://www.sciencedirect.com/science/article/abs/pii/S0094114X1400127X
 
-Dr. Orion Lawlor, lawlor@alaska.edu, 2025-06-30 (Public Domain)
+Dr. Orion Lawlor, lawlor@alaska.edu, 2026-01-20 (Public Domain)
 */
 
 include <AuroraSCAD/gear.scad>;
@@ -88,8 +90,10 @@ topZ = bearingZ(main_bearing); // top surface of main bearing
 gapZ = 3.2; // space for inside bolt heads
 
 // bearings for axle: four small ring bearings
-axleZE = 0.4; // extra Z on axle (clearance between moving parts, avoid rubbing)
+axleZE = 0.4; // extra Z on bearing seats (so they go in flat)
 axleZ=bearingZ(axle_bearing)+axleZE; // Z height, plus a little clearance to fit
+axleringZ = 1.5; // lip that explicitly separates the centered and eccentric bearings (Z height)
+axleringR = 1.0; // radius of lip, just covering the steel (not rubbing the seal)
 
 
 // main bolts cling onto the main bearing: I for inside, O for outside
@@ -138,8 +142,8 @@ extendGZ=2.0; // extend gear teeth this far in Z (lets bevels taper off)
 // List of axle bearing Z start coordinates:
 axleZs=[
     gBZ-axleZ, // frameB bottom [0]
-    gBZ-0.01, // eccentric bottom [1]
-    gTZ+gearZ-axleZ+0.01, // eccentric top [2]
+    gBZ+axleringZ-0.01, // eccentric bottom [1]
+    gTZ+gearZ-axleZ-axleringZ+0.01, // eccentric top [2]
     gTZ+gearZ, // frameT top [3]
 ];
 
@@ -147,7 +151,7 @@ flatBZ=botZ - floorZ - 2; // flat bottom start (including some washer space)
 flatTZ=topZ + gapZ + gearZ + floorZ; // flat top end
 
 // Size of inside of eccentric gears;
-eccentricID = bearingOD(axle_bearing)-2;
+eccentricID = bearingOD(axle_bearing)-2*axleringR;
 
 // Retaining bolt radius in axle
 axle_retainboltR = 7/16*inch; // holds axle together, and holds drive gear down
@@ -158,7 +162,7 @@ counterweightY = 4.5; // +-
 counterweightR = sqrt(counterweightX^2 + counterweightY^2);
 counterweightN = 2;
 
-counterweightZ = axleZs[2] - axleZs[1] - axleZ;
+counterweightZ = axleZs[2]+axleZ - axleZs[1]; // full height of counterweight rods (including edge, indented)
 counterweightOD = 1/4*inch;
 counterweightDensity = 9.0; // copper rod (g/cc) 
 //counterweightDensity = 7.8; // steel rod (g/cc)
@@ -175,7 +179,7 @@ echo(" Counterweight-eccentric clearance ",counterweightClear);
 
 module counterweight(enlarge=0.0,extraZ=0.0) {
     for (dy=[-1,+1])
-    translate([-counterweightX,dy*counterweightY,axleZs[1] + axleZ-enlarge])
+    translate([-counterweightX,dy*counterweightY,axleZs[1]-enlarge])
         cylinder(d=counterweightOD+0.2+2*enlarge,h=counterweightZ+extraZ+2*enlarge);
 }
 
@@ -368,22 +372,26 @@ module version2D(versionText="") {
 
 /* Eccentric gears mate to both ring gears, and transfer power */
 module eccentric_gears() {
+    bottomZ = gBZ+axleringZ;
+    bottomDZ = gearZ + extendGZ - axleringZ;
+    topZ = gTZ-axleringZ;
+    topDZ = extendGZ - axleringZ; // extent of top gear half
     difference() {
         union() {
             solidOD = solidOD(); // min(gear_ID(gPB),gear_ID(gPT));
-            translate([0,0,gBZ]) {
+            translate([0,0,bottomZ]) {
                  toothspot_bottom() {
-                    tooth_planet_bottom(height=gearZ+extendGZ);
-                    cylinder(d=solidOD,h=gTZ+gearZ-gBZ); // solid connection between gears
+                    tooth_planet_bottom(height=bottomDZ);
+                    cylinder(d=solidOD,h=topZ+gearZ-bottomZ); // solid connection between gears
                     
-                    donutZ = (gBZ + gTZ+gearZ)/2; // Z height of merge ring donut: centered halfway between gears
+                    donutZ = (bottomZ + topZ+gearZ)/2; // Z height of merge ring donut: centered halfway between gears
                     
-                    rotate_extrude() translate([solidOD/2-0.1,donutZ+2]) 
+                    #rotate_extrude() translate([solidOD/2-0.1,donutZ+1]) 
                         scale([0.8,1]) circle(r=2.0);
                 }
             }
-            translate([0,0,gTZ-extendGZ])
-                toothspot_top() tooth_planet_top(height=gearZ+extendGZ);
+            translate([0,0,topZ-topDZ])
+                toothspot_top() tooth_planet_top(height=gearZ+topDZ);
             
         }
         // Clearance for drive bearings
@@ -427,8 +435,12 @@ module axlehex3D(h=flatTZ-flatBZ-3)
 
 /* Central block that drives the eccentric */
 module axledrive() {
-    OD=bearingID(axle_bearing)+0.5;
+    OD=bearingID(axle_bearing)+2*axleringR;
     ID=11; // inside hole, for encoder or some such
+    
+    bearID = bearingID(axle_bearing);
+    // Bearings rest on seats of these diameters
+    inID = bearID+2*axleringR;
     
     Z = flatTZ-flatBZ-1.5;
     centerZ=axleZs[2]+axleZ-axleZs[1];
@@ -440,8 +452,25 @@ module axledrive() {
             // Extra material in middle
             toothspot_bottom() { //<- picks up XY offset to match planets
             
-                translate([axledrive_preload,0,axleZs[1]+0.01]) 
-                    cylinder(d=bearingID(axle_bearing)+2,h=centerZ-0.02);
+                translate([axledrive_preload,0,axleZs[1]]) 
+                    cylinder(d=bearingID(axle_bearing)+1,h=centerZ);
+                
+            }
+            
+            // Transitions up to axle rings
+            thick=0.25*axleringZ;
+            zs=[
+                axleZs[1]-0.5*axleringZ, // centered bottom transition
+                axleZs[1]-thick, // kick-out of bottom transition
+                
+                axleZs[2]+axleZ+0.5*axleringZ-thick, // centered top transition
+                axleZs[2]+axleZ, // kick-out top transition
+            ];
+            for (zi=[0,2])
+            hull() {
+                translate([0,0,zs[zi]]) cylinder(d=inID,h=thick);
+                toothspot_bottom() translate([0,0,zs[zi+1]])
+                    cylinder(d=inID,h=thick);
             }
             
             children(); // any extra drive gizmos go at the top
@@ -455,7 +484,8 @@ module axledrive() {
         translate([0,0,axleZs[3]]) bearing3D(axle_bearing,extraZ=axleZE);
         
         // Counterweight: extends up to bearing top so it can be inserted during print
-        #counterweight(enlarge=0,extraZ=axleZ);
+        //   Counterweight rods need to fit in slots, and rest on the inside of the axle bearings
+        #counterweight(enlarge=0);
         
         
         // Eccentrics
@@ -463,7 +493,25 @@ module axledrive() {
             
         
             // Trim whole interior to allow slide-over (spaced by gear)
-            translate([axledrive_preload,0,axleZs[1]]) bearing3D(axle_bearing,extraZ=axleZs[2]-axleZs[1]+axleZE);
+            translate([axledrive_preload,0,axleZs[1]]) 
+            difference() {
+                h=axleZs[2]-axleZs[1]+axleZ;
+                cylinder(d=bearingOD(axle_bearing)+10,h=h);
+                cylinder(d=bearingID(axle_bearing)-1.5*bearing_clearance,h=3*h,center=true);
+            
+            }
+            // Clearance around the bearing moving parts
+            for (zi=[0,1]) {
+                dir = zi?-1:+1; // Z direction for clearance ring to extend
+                start = zi?axleZs[1]+0.01:axleZs[2]+axleZ-0.01; // start point of clearance ring
+                outOD = bearingOD(axle_bearing)+2*axleringR;
+                translate([0,0,start]) scale([1,1,dir])
+                difference() {
+                    cylinder(d=outOD,h=axleringZ*0.5);
+                    cylinder(d=inID,h=3*axleringZ,center=true);
+                }
+                
+            }
             
             /*
             // Separate parts
@@ -577,10 +625,10 @@ module printable_frameT() {
     scale([1,1,1]*scale) rotate([180,0,0]) translate([90,0,-flatTZ]) frameT();
 }
 module printable_eccentric_gears() {
-    scale([1,1,1]*scale) translate([-70,0,-gBZ]) eccentric_gears();
+    scale([1,1,1]*scale) translate([-70,0,-gBZ-axleringZ]) eccentric_gears();
 }
 module printable_axledrive() {
-    scale([1,1,1]*scale) translate([0,100,0])
+    scale([1,1,1]*scale) // translate([0,100,0])
     {
         if (axle_slot) { // print sideways, to get layers the right way
             rotate([-90,0,0]) translate([0,-bearingIR(axle_bearing),-flatBZ]) axledrive();
@@ -628,7 +676,7 @@ else if (0) {
 else if (0) { // printable pieces
     printable_eccentric_gears();
 
-    printable_frameB();
+    //printable_frameB();
     //printable_frameT();
 
     //printable_axledrive();
