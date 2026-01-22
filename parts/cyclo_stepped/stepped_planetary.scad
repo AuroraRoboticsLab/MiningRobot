@@ -420,11 +420,11 @@ module axleslot(extraW=0,extraL=0) {
 }
 
 /* Fits in axledrive, holds stepper shaft */
-module axlehex3D(h=flatTZ-flatBZ-3)
+module axlehex3D(enlarge=0,h=flatTZ-flatBZ-3)
 {
     difference() {
         union() {
-            translate([0,0,flatBZ]) linear_extrude(height=h) hexdrive2D();
+            translate([0,0,flatBZ]) linear_extrude(height=h) offset(enlarge) hexdrive2D();
             if (axle_slot) axleslot();
         }
         
@@ -643,18 +643,30 @@ module printable_axlehex() {
         translate([0,0,-flatBZ]) axlehex3D();
 }
 
-// Handheld spinner
-module printable_axlehandspin() {
-    translate([0,0,-flatBZ]) {
-        axlehex3D(h=10);
-        d=10;
-        cylinder(d=d,h=20);
-        bevel=4;
-        rotate_extrude() 
-        translate([d/2,1]) 
+// Handheld spinner: h is height of hex portion
+module printable_axlehandspin(h=10, handle=20) {
+     
+     scale([1,1,-1]) translate([0,0,-flatBZ-h])
         difference() {
-            square(bevel*[1,1]);
-            translate(bevel*[1,1]) circle(r=bevel);
+            axlehex3D(enlarge=-0.3, h=h);
+            counterweight(enlarge=0.5,extraZ=0.5);
+        }
+    
+    translate([0,0,h])
+    {
+        d=10;
+        lip=1;
+        bevel=5;
+        difference() {
+            cylinder(d=d,h=handle);
+            cylinder(d=5,h=100,center=true);
+        }
+        
+        rotate_extrude() 
+        translate([d/2,0]) 
+        difference() {
+            square(bevel*[1,1]+[0,lip]);
+            translate(bevel*[1,1]+[0,lip]) circle(r=bevel);
         }
     }
 }
@@ -681,28 +693,28 @@ else if (0) { // printable pieces
 
     //printable_axledrive();
 } 
-else if (1) { // separate batch for axle, so bearings can be 3D printed into it
+else if (0) { // separate batch for axle, so bearings can be 3D printed into it
     //printable_axlehex();
     printable_axledrive();
 }
 else if (0) {
     counterweight_bolton();
 }
-else if (1) { // CAM cross sections
+else if (0) { // CAM cross sections
     XY = [100,100,0]; // XY shift puts parts in positive quadrant
     projection(cut=true) translate([0,0,-gTZ-0.1*gearZ]) frameT();
     //projection(cut=true) translate([0,0,-gBZ-0.5*gearZ]) frameB();
     //projection(cut=true) translate([0,0,-gTZ-0.5*gearZ]) eccentric_gears();
     //projection(cut=true) translate([0,0,-gBZ-0.5*gearZ]) eccentric_gears();
 }
-else if (1) { // balance check
+else if (0) { // balance check
     difference() {
         printable_axledrive();
         side=-1;
         translate([side*100,100,0]) cube([200,200,200],center=true);
     }
 }
-else if (0) {
+else if (1) {
     // Drive hex for hand testing
     printable_axlehandspin();
 }
