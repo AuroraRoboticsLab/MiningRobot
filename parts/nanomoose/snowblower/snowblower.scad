@@ -220,7 +220,7 @@ module auger3D() {
                 // Bearing axle areas on ends
                 cylinder(d=hexbearingID,h=augerBL,center=true);
                 // Bearing indexing
-                cylinder(d=hexbearingID+3,h=housingL,center=true);
+                cylinder(d=hexbearingID+3,h=augerL+auger_housing_clearance,center=true);
             }
         }
         
@@ -373,11 +373,12 @@ module demo_snowblower() {
 }
 
 
-//demo_snowblower();
+//rotate([90,0,0])
+    demo_snowblower();
 
 //#auger_cylinder(); // Auger working volume
 
-auger3D();
+//auger3D();
 
 //housing3Deject(); // full housing
 //translate([0,0,+houseboltCutZ]) rotate([180,0,0]) housing3D(); // main housing
