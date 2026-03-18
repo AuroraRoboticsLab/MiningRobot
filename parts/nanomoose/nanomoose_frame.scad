@@ -13,33 +13,11 @@ Coordinate system is centered between the robot's 4 wheels
  Dr. Orion Lawlor, lawlor@alaska.edu, 2026-03-10 (Public Domain)
 */
 
+include <interface.scad>;
 include <AuroraSCAD/bearing.scad>;
 include <TT_holder.scad>;
 include <arm_gears.scad>;
 $fs=0.2; $fa=4; // coarse
-
-overscale=1/4; // scale factor to real version
-sinch=25.4*overscale; // scaled inches
-
-frameW = 1.0*sinch; // width
-frameH = 2.0*sinch; // Z height (thicker for better stiffness)
-frameN = 0.5*sinch; // narrow width for selected frame areas
-
-mainframeDY=19*sinch; // half the front-back edge-to-edge length
-mainframeDX=14*sinch; // half the left-right edge-to-edge width
-subframeDX=6.5*sinch; // half the left-right subframe width
-
-// Make a frame-type box, centered, with these dimensions
-module mainframeStick(dim,enlarge=0,bevel=0,threeD=0) {    
-    if (threeD) {
-        // Direct to 3D version:
-        bevelcube(dim-2*enlarge*[1,1,1],center=true,bevel=bevel);
-    }
-    else {
-        // 2D version, allowing bevels
-        square([dim[0],dim[1]]-2*enlarge*[1,1],center=true);
-    }
-}
 
 // Battery box with charger and 18650
 batterySZ=[25.4,98,23];
@@ -100,15 +78,15 @@ module tire_grousers() {
     for (angle=[0:360/ngrousers:360-1]) rotate([0,0,angle])
         translate([tireOD/2-grouserht*0.5,0,0])
             rotate([-grouserangle,0,0])
-                cube([3*grouserht, 1.6, tireZ*1.1],center=true);
+                cube([3*grouserht, 1.2, tireZ*1.1],center=true);
 }
 
 // Tire lighten spoke shapes
 module tire_lighten() {
-    spoke=1.6; // thickness of spokes (4 perimeters)
+    spoke=1.2; // thickness of spokes (3 perimeters)
     nspoke=6;
-    rim=1.6; // thickness of tire rim
-    round=6;
+    rim=1.2; // thickness of tire rim (carcass)
+    round=4;
     intersection() {
         tire_cylinder(extraR=-rim,extraB=+0.3*rim,extraZ=0.2);
         
@@ -128,10 +106,10 @@ tireshaftZ=-tireZ/2-tireshaftDZ; // start Z location of motor drive shaft relati
 
 // Tire axle spaces
 module tire_axlespace() {
-    cylinder(d=3.2,h=tireZ+0.2,center=true); // cut M3 throughout
+    cylinder(d=4.0,h=tireZ+0.2,center=true); // cut generous clearance for M3 throughout (avoid tightening to mount screw)
     
     translate([0,0,tireshaftZ-0.1]) {
-        TTshaft(enlarge=0.1); // motor shaft
+        TTshaft(enlarge=0.0); // space for motor shaft
         cylinder(d1=TTshaftOD+0.4,d2=TTshaftOD-0.6,h=1.5); // taper entrance
     }
     
@@ -271,15 +249,20 @@ ebox_mountF=[-36,-16,32];
 ebox_mountB=ebox_mountF+[0,-100,0];
 ebox_sz=[10,8,ebox_mountF[2]+frameH/2];
 
-module ebox_posts() {
-    leftright() {
+// Put children at each electronics box post center
+module ebox_post_centers() {
+    leftright() 
         for (m=[ebox_mountF,ebox_mountB]) translate(m) 
+            children();
+}
+
+module ebox_posts() {
+    ebox_post_centers()
         difference() {
             translate([0,0,-ebox_sz[2]/2])
                 bevelcube(ebox_sz,center=true,bevel=2);
             cylinder(d=armAxleTap,h=30,center=true);
         }
-    }
 }
 
 
@@ -320,6 +303,22 @@ module mainframeMotors() {
         union() {
             mainframeSteel();
             
+            floor=0.5; // thin electronics box floor
+            translate([0,0,-frameH/2+floor/2]) {
+                cube([2*subframeDX,2*mainframeDY,floor],center=true);
+                // simple cross ribs, to limit tears
+                linear_extrude(height=2) 
+                intersection() {
+                    square([2*subframeDX,2*mainframeDY],center=true);
+                    round=1.5;
+                    offset(r=-round) offset(r=+round)
+                    for (y=[-mainframeDY:25:+mainframeDY+50])
+                        translate([0,y])
+                            for (angle=[-45,+45]) rotate([0,0,angle])
+                                square([1.2,120],center=true);
+                }
+            }
+            
             // Motor cases
             motorcenters() {
                 TTmotor_case() TTmotor_case_ridge();
@@ -343,7 +342,10 @@ module mainframeMotors() {
         // Re-clear space around motors
         motorcenters() { 
             // TTmainbody(); TTmotorbody(); 
-            TTmotorclear(with_bolts=1, accurate=0); 
+            TTmotorclear(with_bolts=1, bolt_extend=4, 
+                accurate=0, // try to extend 
+                bolt_extraD=-0.4 // <- tap M3 into printed holes
+            ); 
         }
         
         // Front arm gear axles (thru, tapped into the arm frame)
@@ -369,11 +371,9 @@ module mainframeMotors() {
     }
 }
 
-armclear=0.3; // clearance between moving parts of arm
-
 // The arm frame provides twist resistance, and tap points for the M3 bolts holding the whole arm assembly together
 module armframeSteel() {
-    round=6;
+    round=4;
     X = -subframeDX+frameW+armclear; // half-width of full frame
     Y = translateAL[0]; // length of frame along Y
     intersection() {
@@ -397,7 +397,8 @@ module armframeSteel() {
             
             // crossbar
             hull() {
-                for (p=[[X+frameW/2,0.1*Y], [-X-frameW/2,0.9*Y]])
+                inset=0.05;
+                for (p=[[X+frameW/2,inset*Y], [-X-frameW/2,(1-inset)*Y]])
                     translate(p) circle(d=frameW);
             }
         }
@@ -424,8 +425,13 @@ module printable_tire()
 
 //demo_rover();
 
-//printable_tire();
-intersection() { mainframeMotors(); translate([0,-5,-10]) cube([100,200,100]); } // trimmed test
+//scale([-1,1,1]) // white tires are -1 left helix grousers, black are +1 right helix grousers
+//    printable_tire();
+if (0) intersection() { 
+    mainframeMotors(); 
+    //translate([10,-20,-10]) cube([40,200,100]); // tests front two motors and wheelwell
+    //translate([10,20,-10]) cube([40,60,35]); // fit-tests one front motor
+} // trimmed test
 //armframeSteel();
 if (0) {
     printable_arm_raise();
