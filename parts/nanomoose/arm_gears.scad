@@ -7,11 +7,11 @@
  Dr. Orion Lawlor, lawlor@alaska.edu, 2026-03-10 (Public Domain)
 */
 
+include <interface.scad>;
+
 include <AuroraSCAD/bevel.scad>;
 include <AuroraSCAD/gear.scad>;
 include <TT_holder.scad>;
-
-gearZ=8.0; // Z height of gear teeth
 
 // Arm gear tooth style: module, height, pressure angle, addendum/dedendum
 geartype_arm = [ 1.5, gearZ, 20, 0.32, 0.4 ]; 
@@ -23,14 +23,8 @@ rotateMA = 20; // rotation between motor and gear (relative to +X)
 echo("motor-arm pivot distance: ",translateMA);
 echo("arm gear OD: ",gear_OD(gearA));
 
-armAxleOD=3.0; // diameter of arm pivot bolts
-armAxleTap=2.6; // tap diameter
-
-armTiltDY=18; // distance up on gear to arm tilt linkage
-
-armpivotOD = 6; // size of arm pivot points (same as M3 head)
 rotateAL=[0,0,-30]; // gear-relative rotation between arm gear and scoop low pivot
-translateAL=[60,0,0]; // translation distance between arm and scoop low pivot
+translateAL=[30,0,0]; // translation distance between arm and scoop low pivot
 
 armAL=-55; // angle of arm in low position
 armAH=+125; // angle of arm in high position
@@ -132,6 +126,24 @@ module armpivotcase()
     }
 }
 
+// Link to control tool tilt
+module arm_link(len=translateAL[0],wid=4) {
+    round=5;
+    linear_extrude(height=gearZ,convexity=2) 
+    difference() {
+        offset(r=-round) offset(r=+round) 
+        {
+            translate([len/2,0,0]) square([len,wid],center=true);
+            for (end=[0,1]) translate([len*end,0])
+                circle(d=armpivotOD);
+        }
+        
+        for (end=[0,1]) translate([len*end,0])
+            circle(d=armAxleOD);
+    }
+    
+}
+
 // Demo of all arm gears and case
 module demo_arm() {
     rotate([0,0,90]) rotate([90,0,0]) // in frame orientation
@@ -166,6 +178,7 @@ module printable_arm_tilt(with_case=0) {
 }
 
 
-//demo_arm();
-//printable_arm_raise();
+// demo_arm();
 
+//printable_arm_raise();
+//arm_link();
