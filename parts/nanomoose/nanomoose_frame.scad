@@ -171,6 +171,13 @@ module leftright() {
         children();
 }
 
+// Make these parts front-back symmetric around Y
+module frontback() {
+    for (frontback=[-1,+1]) scale([1,frontback,1])
+        children();
+}
+
+
 // Put children at each motor center
 module motorcenters(with_tire=1,with_front=1) {
     if (with_tire)
@@ -222,25 +229,25 @@ module wheelwell3D_solid(enlarge=0) {
 }
 
 // Wheel well gets trimmed back by this box (separate piece added with electronics housing?)
-module wheelwell_trimbox() {
+module wheelwell_trimbox(enlarge=0) {
     // to insert motors with wheels already attached, we need clearance down to the motors
     bevel=12;
-    translate([0,TTindexdotDX/2,100+mainaxleDZ]) bevelcube([200,mainaxleDY*2+2*bevel-TTindexdotDX,200],center=true,bevel=bevel);
+    translate([0,TTindexdotDX/2,100+mainaxleDZ]) bevelcube([200,mainaxleDY*2+2*bevel-TTindexdotDX,200]-2*enlarge*[1,1,1],center=true,bevel=bevel);
 }
 
-module wheelwell3D() {
+module wheelwell3D(enlarge=0) {
     difference() {
-        wheelwell3D_solid(enlarge=wheelwellwall);
-        wheelwell3D_solid();
+        wheelwell3D_solid(enlarge=wheelwellwall+enlarge);
+        wheelwell3D_solid(enlarge=-enlarge);
         
         leftright() { 
             // trim outside (only care about dust headed inwards
             translate([subframeDX+6+200,0,0]) cube([400,400,400],center=true);
             // trim below center
-            translate([0,0,-frameH/2-200]) cube([400,400,400],center=true);
+            translate([0,0,-frameH/2-200-enlarge]) cube([400,400,400],center=true);
             
         }
-        wheelwell_trimbox();
+        wheelwell_trimbox(enlarge=enlarge);
     }
 }
 
@@ -270,9 +277,9 @@ module ebox_posts() {
 // Gusset triangle underneath the motors (anti-rotation, and print support)
 module motorGusset() {
     rotate([0,90,0])
-        linear_extrude(height=2.4) hull() {
-            translate([0,-13]) square([20,6]);
-            translate([0,-25]) square([5,1]);
+        linear_extrude(height=1.6) hull() {
+            translate([-1,-14]) square([22,6]);
+            translate([-1,-25]) square([6,1]);
         }
 }
 
@@ -297,27 +304,34 @@ module TTmotor_boltfront(wall=1.6) {
     }
 }
 
+// Make a thin floor of these dimensions.
+//  XY center is at the origin.  Z goes +.
+module waffleFloor(wid,ht,floor=0.5, ribXY=1.2, ribZ=2, round=1.5, spacing=25)
+{
+    translate([0,0,floor/2]) {
+        cube([wid,ht,floor],center=true);
+        
+        // simple waffle cross ribs, to limit deflection and tearing
+        linear_extrude(height=ribZ) 
+        intersection() {
+            square([wid,ht],center=true);
+            offset(r=-round) offset(r=+round)
+            for (y=[-ht/2:spacing:+ht/2+2*spacing])
+                translate([0,y])
+                    for (angle=[-45,+45]) rotate([0,0,angle])
+                        square([ribXY,120],center=true);
+        }
+    }
+}
+
 // Frame with motor mount points
 module mainframeMotors() {
     difference() {
         union() {
             mainframeSteel();
             
-            floor=0.5; // thin electronics box floor
-            translate([0,0,-frameH/2+floor/2]) {
-                cube([2*subframeDX,2*mainframeDY,floor],center=true);
-                // simple cross ribs, to limit tears
-                linear_extrude(height=2) 
-                intersection() {
-                    square([2*subframeDX,2*mainframeDY],center=true);
-                    round=1.5;
-                    offset(r=-round) offset(r=+round)
-                    for (y=[-mainframeDY:25:+mainframeDY+50])
-                        translate([0,y])
-                            for (angle=[-45,+45]) rotate([0,0,angle])
-                                square([1.2,120],center=true);
-                }
-            }
+            translate([0,0,-frameH/2]) 
+                waffleFloor(wid=2*subframeDX,ht=2*mainframeDY);
             
             // Motor cases
             motorcenters() {
