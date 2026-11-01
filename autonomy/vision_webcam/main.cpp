@@ -138,8 +138,11 @@ int main(int argc,char **argv)
 	}
 
 	//read from camera
-	vidcap.open(camNo);
-	
+	// Gemini 3.6 suggested these fixes: use CAP_V4L2 to avoid gstreamer induced errors.
+	vidcap.open(camNo, cv::CAP_V4L2);
+	// Set format to MJPEG before setting resolution (uses much less USB bandwidth, higher res enabled)
+    vidcap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    
 	if (wid) vidcap.set(cv::CAP_PROP_FRAME_WIDTH, wid);
 	if (ht)  vidcap.set(cv::CAP_PROP_FRAME_HEIGHT, ht);
 
